@@ -305,7 +305,7 @@
             <button onclick="document.getElementById('modal-doc').style.display='none'" style="background:#e53170; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">✕ Fermer</button>
         </div>
         <p><strong>Structure :</strong> Interface tactile MDX-Powerscreen → Informations / Mode lecture / Paramétrage (Rapide, Avancé, Sauvegarde, Paramétrage console, IHM-Date/Heure) / Commande par console / Historique des mises en sécurité.</p>
-        <p style="color:#94a1b2; font-size:12px;">Source : Guide de mise en service Powerdrive MD2, réf. 4617 fr - 2020.07/h (Nidec Leroy-Somer). Paramètres du mode Paramétrage Rapide (menus Ctr, Mtr, Spd, I/O, Apl) essentiels à la mise en service ; menus Avancé 13/15 à 21 non modélisés dans cette version (voir note de couverture).</p>
+        <p style="color:#94a1b2; font-size:12px;">Source : Guide de mise en service Powerdrive MD2, réf. 4617 fr - 2020.07/h (Nidec Leroy-Somer). Paramètres du mode Paramétrage Rapide (menus Ctr, Mtr, Spd, I/O, Apl) essentiels à la mise en service, et Menu Avancé 16 (Fonctions d'automatisme) en extraction complète ; menus Avancé 13, 15, 17, 18, 20, 21 non modélisés et menu 19 sans paramètre natif documenté dans le manuel (voir note de couverture).</p>
         <div id="doc-tableaux-params"></div>
 
         <h3 style="color:#2cb67d; margin-top:20px;">🖥️ État de fonctionnement (paramètre 10.98)</h3>
@@ -692,6 +692,68 @@
     // Menu natif "Avancé" (01 à 21) déduit de l'adresse (MM.PP) de chaque paramètre.
     defsMD2.forEach(d => { d.menuAvance = parseInt(d.adresse.split(".")[0], 10); d.valeurUsine = (d.type === "enum") ? d.options[d.indexOpt] : d.valeur; });
 
+    // ===================================================================
+    // MENU 16 : FONCTIONS D'AUTOMATISME (mode Avancé uniquement — pas de
+    // correspondance en mode Paramétrage Rapide). Extraction complète,
+    // manuel §5.17, p.140-146. Structure très régulière (blocs répétés),
+    // générée ici par blocs plutôt que recopiée ligne à ligne.
+    // Les paramètres "Sortie" (16.x1, 16.91) sont des sorties calculées par
+    // la logique du bloc dans le variateur réel ; le simulateur ne modélise
+    // pas l'exécution de ces blocs logiques (Tempo/Auto-maintien/Cycleur),
+    // ils restent donc éditables ici à titre pédagogique/documentaire
+    // uniquement (voir note de couverture).
+    // ===================================================================
+    function genererParamsMenu16() {
+        const params = [];
+        for (let i = 0; i < 4; i++) {
+            const base = i * 10, n = i + 1;
+            params.push({paramKey:"M16Tempo"+n+"Sortie", adresse:"16."+String(base+1).padStart(2,"0"), nom:"Sortie du bloc temporisation "+n, type:"enum", options:["Inactive","Active"], indexOpt:0,
+                desc:"État de la sortie du bloc temporisation "+n+" (calculé par la logique du bloc sur le variateur réel ; non exécuté par ce simulateur, éditable à titre documentaire)."});
+            params.push({paramKey:"M16Tempo"+n+"Source", adresse:"16."+String(base+2).padStart(2,"0"), nom:"Source du bloc temporisation "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse (Menu.Paramètre) du paramètre «bit» affecté à l'entrée du bloc temporisation "+n+". Si un paramètre inadéquat est adressé, l'entrée sera figée à 0."});
+            params.push({paramKey:"M16Tempo"+n+"Type", adresse:"16."+String(base+3).padStart(2,"0"), nom:"Type tempo du bloc "+n, type:"enum", options:["Travail","Repos"], indexOpt:0,
+                desc:"Travail : le passage à Active de la sortie est retardé par rapport au passage à 1 de l'entrée. Repos : le passage à Inactive est retardé par rapport au passage à 0 de l'entrée."});
+            params.push({paramKey:"M16Tempo"+n+"Unite", adresse:"16."+String(base+4).padStart(2,"0"), nom:"Unité du bloc temporisation "+n, type:"enum", options:["Seconde","Minute","Heure"], indexOpt:0,
+                desc:"Unité de temps utilisée par la valeur de temporisation du bloc "+n+"."});
+            params.push({paramKey:"M16Tempo"+n+"Valeur", adresse:"16."+String(base+5).padStart(2,"0"), nom:"Valeur de la temporisation du bloc "+n, type:"num", min:0.0, max:60.0, pas:0.1, valeur:0.0,
+                desc:"Durée de la temporisation "+n+" ; l'unité dépend du paramétrage du paramètre Unité correspondant (16."+String(base+4).padStart(2,"0")+")."});
+            params.push({paramKey:"M16Tempo"+n+"Dest", adresse:"16."+String(base+9).padStart(2,"0"), nom:"Destination du bloc temporisation "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» affecté par la sortie du bloc temporisation "+n+". Si un paramètre inadéquat est adressé, la sortie sera figée à 0."});
+        }
+        for (let i = 0; i < 4; i++) {
+            const base = 40 + i * 10, n = i + 1;
+            params.push({paramKey:"M16AutoM"+n+"Sortie", adresse:"16."+String(base+1).padStart(2,"0"), nom:"Sortie du bloc auto-maintien "+n, type:"enum", options:["Inactive","Active"], indexOpt:0,
+                desc:"État de la sortie du bloc auto-maintien "+n+" (voir note de simulation des blocs logiques ci-dessus)."});
+            params.push({paramKey:"M16AutoM"+n+"SrcON", adresse:"16."+String(base+2).padStart(2,"0"), nom:"Source ON du bloc auto-maintien "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» de validation du bloc auto-maintien "+n+". Une impulsion ou l'état 1 sur l'entrée entraîne le passage à Active de la sortie."});
+            params.push({paramKey:"M16AutoM"+n+"SrcOFF", adresse:"16."+String(base+3).padStart(2,"0"), nom:"Source OFF du bloc auto-maintien "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» de dévalidation du bloc auto-maintien "+n+". Une impulsion ou l'état 1 sur l'entrée entraîne le passage à Inactive de la sortie."});
+            params.push({paramKey:"M16AutoM"+n+"Dest", adresse:"16."+String(base+9).padStart(2,"0"), nom:"Destination du bloc auto-maintien "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» affecté par la sortie du bloc auto-maintien "+n+"."});
+        }
+        params.push({paramKey:"M16CyclNbEtats", adresse:"16.80", nom:"Nombre d'états cyclés", type:"num", min:0, max:8, pas:1, valeur:0,
+            desc:"0 : cycleur dévalidé. 1 à 8 : nombre d'états du cycleur (ex : si = 3, le cycleur effectue le cycle 1 → 2 → 3 → 1 ...)."});
+        for (let e = 1; e <= 8; e++) {
+            params.push({paramKey:"M16CyclTemps"+e, adresse:"16."+(80+e), nom:"Temps du cycleur sur l'état "+e, type:"num", min:0, max:9999, pas:1, valeur:0, unite:"s",
+                desc:"Détermine le temps pendant lequel le cycleur reste à l'état "+e+"."});
+        }
+        params.push({paramKey:"M16CyclSortie", adresse:"16.91", nom:"Sortie du cycleur", type:"num", min:-127, max:135, pas:1, valeur:0,
+            desc:"Indique l'état courant du cycleur (voir note de simulation des blocs logiques ci-dessus)."});
+        params.push({paramKey:"M16CyclDest", adresse:"16.92", nom:"Destination du cycleur", type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+            desc:"Paramètre auquel l'état du cycleur est adressé. Exemple : pour cycler plusieurs vitesses, choisir 01.15 comme destination."});
+        params.push({paramKey:"M16CyclRAZ", adresse:"16.93", nom:"Remise à zéro du cycleur", type:"enum", options:["Non","Oui"], indexOpt:0,
+            desc:"Passage à Oui : le cycleur est remis à l'état 1. Peut être utilisé pour contrôler le début du cycle par entrée logique."});
+        params.push({paramKey:"M16CyclMode", adresse:"16.94", nom:"Mode du cycleur", type:"enum",
+            options:["À l'ordre de marche, Init sur état 1","Tourne en permanence, Même à l'arrêt","À l'ordre de marche, reprend état préc."], indexOpt:0,
+            desc:"Détermine le comportement du cycleur à l'ordre de marche : réinitialisation sur l'état 1, rotation permanente (même à l'arrêt), ou reprise de l'état précédent."});
+        params.push({paramKey:"M16CyclOffset", adresse:"16.95", nom:"Offset du cycleur", type:"num", min:-127, max:127, pas:1, valeur:0,
+            desc:"Permet d'ajouter un offset à la valeur issue du cycleur."});
+
+        params.forEach(p => { p.groupeQuick = null; p.aplBloc = null; p.menuAvance = 16; p.valeurUsine = (p.type === "enum") ? p.options[p.indexOpt] : p.valeur; });
+        return params;
+    }
+    defsMD2.push(...genererParamsMenu16());
+
     const titresMenusAvances = {
         1:"Références vitesse et limitations", 2:"Rampes", 3:"Option codeur, Alarmes, Seuils de vitesse",
         4:"Boucle de courant - Régulation de couple", 5:"Contrôle moteur", 6:"Commandes logiques et compteurs",
@@ -1040,12 +1102,15 @@
         const d = liste[indexParamAvance];
         let html = entete("Paramétrage avancé") + '<div class="ts-content"><div class="ts-param-screen">';
         html += '<div class="ts-param-titre-menu">MENU ' + String(numMenuAvance).padStart(2,"0") + ' : ' + (titresMenusAvances[numMenuAvance] || "") + '</div>';
-        if (!d) {
+        if (!d && numMenuAvance === 19) {
+            html += '<div class="ts-param-nom">Aucun paramètre natif documenté</div>' +
+                '<div class="ts-param-valbox readonly"><div style="font-size:11px;">Le manuel indique littéralement : «Se référer à la notice de l\'option correspondante» (§5.20). Ce menu dépend de la carte d\'E/S supplémentaire installée (ex. MDX-IO) ; son contenu n\'est pas détaillé dans le guide de mise en service de base et n\'est donc pas inventé ici.</div></div>';
+        } else if (!d) {
             html += '<div class="ts-param-nom">Aucun paramètre modélisé</div>' +
-                '<div class="ts-param-valbox readonly"><div style="font-size:11px;">Ce menu n\'est pas couvert dans cette version du simulateur (voir Doc Technique § couverture). Seuls les menus 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12 et 14 contiennent des paramètres du mode Rapide.</div></div>';
+                '<div class="ts-param-valbox readonly"><div style="font-size:11px;">Ce menu n\'est pas couvert dans cette version du simulateur (voir Doc Technique § couverture). Les menus 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 14 et 16 contiennent des paramètres modélisés ; le menu 19 est un cas particulier (voir sa propre page).</div></div>';
         } else {
             html += '<div class="ts-param-nom">' + d.adresse + ' — ' + d.nom + '</div>' +
-                '<div class="ts-param-adresse">correspond à ' + d.paramKey + ' en mode Rapide (menu ' + d.groupeQuick + ')' + (d.condition ? ' — ' + d.condition : '') + '</div>' +
+                '<div class="ts-param-adresse">' + (d.groupeQuick ? ('correspond à ' + d.paramKey + ' en mode Rapide (menu ' + d.groupeQuick + ')') : 'Paramètre du mode Avancé uniquement (sans équivalent en Paramétrage Rapide)') + (d.condition ? ' — ' + d.condition : '') + '</div>' +
                 '<div class="ts-param-valbox ' + (editionAvanceActive ? "editable" : "readonly") + '">' + contenuValeurEditable(d, editionAvanceActive, "Avance") + '</div>';
         }
         html += '</div></div>';
@@ -1296,134 +1361,4 @@
     // Sous-ensemble simulé : IH (verrouillé), St (arrêt), OP (fonctionnement),
     // tr (mise en sécurité). Les états rd/CH/Lt/Fr/re ne sont pas atteignables
     // par la physique simplifiée de cette version (voir note de couverture).
-    // ===================================================================
-    function calculerEtatFonctionnement() {
-        if (miseEnSecuriteActive) return {code:"tr", valeur: miseEnSecuriteActive.num, libelle: miseEnSecuriteActive.libelle};
-        if (!etatCablage.sto) return {code:"IH", valeur:0, libelle:"Verrouillé"};
-        if (!etatCablage.alim) return {code:"IH", valeur:0, libelle:"Verrouillé (pas d'alimentation réseau)"};
-        if (vitesseReelle > 0.1) return {code:"OP", valeur:1, libelle:"Déverrouillé moteur"};
-        return sensInverseActuel
-            ? {code:"St", valeur:5, libelle:"Arrêt rampe sens anti-horaire moteur"}
-            : {code:"St", valeur:3, libelle:"Arrêt rampe sens horaire moteur"};
-    }
-    function libelleEtatCourt() {
-        const e = calculerEtatFonctionnement();
-        return e.code + " / " + e.valeur + " — " + e.libelle;
-    }
-    function vitesseAffichee() { return (sensInverseActuel ? -1 : 1) * vitesseReelle; }
-
-    // ===================================================================
-    // Mises en sécurité (§7.4) — sous-ensemble câblé à la simulation
-    // ===================================================================
-    function declencherMES(num, libelleCourt, detail) {
-        miseEnSecuriteActive = {num: num, libelle: libelleCourt};
-        alarmeActive = null;
-        const d = new Date();
-        historiqueMES.push({date: d.toLocaleDateString("fr-FR"), heure: d.toLocaleTimeString("fr-FR"), libelle: "N°" + num + " — " + libelleCourt});
-        if (historiqueMES.length > 10) historiqueMES.shift();
-        logConsole("[MES] Déclenchement mise en sécurité n°" + num + " : " + libelleCourt + " — " + detail);
-        sauvegarderDansLocalStorage();
-    }
-    function causeMiseEnSecuriteResolue() {
-        if (!miseEnSecuriteActive) return true;
-        switch (miseEnSecuriteActive.num) {
-            case 35: return etatCablage.sto;
-            case 6: return etatCablage.moteur;
-            case 1: return etatCablage.alim;
-            case 28: return tensionAI2 >= 0.5 || obtenirValeurParam("Spd03") !== "Entrée analogique 2";
-            case 21: return compteurEchauffement < 50;
-            default: return true;
-        }
-    }
-    function verifierMisesEnSecurite() {
-        if (miseEnSecuriteActive) return;
-        if (!etatCablage.sto && ordreRunCourant && vitesseReelle > 0.3) {
-            declencherMES(35, "Entrées STO", "Ouverture simultanée des 2 entrées STO pendant le fonctionnement.");
-            return;
-        }
-        if (!etatCablage.moteur && vitesseReelle > 0.3) {
-            declencherMES(6, "Perte d'une phase moteur", "Un des 3 courants moteur est inférieur de 10% aux 2 autres (câble moteur déconnecté).");
-            return;
-        }
-        if (!etatCablage.alim && vitesseReelle > 0.3) {
-            declencherMES(1, "Sous tension bus continu", "La tension du bus continu est passée sous le seuil minimum (perte réseau en fonctionnement).");
-            return;
-        }
-        const io01 = obtenirValeurParam("IO01");
-        if (io01 && io01.indexOf("avec détection") !== -1 && obtenirValeurParam("Spd03") === "Entrée analogique 2" && tensionAI2 < 0.5 && ordreRunCourant) {
-            declencherMES(28, "Perte 4mA sur AI2", "Perte de la consigne courant sur l'entrée analogique AI2 (type de signal «avec détection»).");
-            return;
-        }
-        const ctr03 = parseFloat(obtenirValeurParam("Ctr03"));
-        if (ctr03 >= 16 && vitesseReelle > 0.1) compteurEchauffement++;
-        else compteurEchauffement = Math.max(0, compteurEchauffement - 2);
-
-        if (compteurEchauffement > 200) {
-            declencherMES(21, "Surchauffe IGBT U", "Surchauffe des IGBTs de phase U (fréquence de découpage élevée prolongée). Réduire Ctr.03 ou améliorer le refroidissement.");
-            return;
-        } else if (compteurEchauffement > 90 && !alarmeActive) {
-            alarmeActive = {num:7, libelle:"Surchauffe variateur (alarme préventive, voir 10.18)"};
-        } else if (compteurEchauffement <= 90 && alarmeActive && alarmeActive.num === 7) {
-            alarmeActive = null;
-        }
-    }
-
-    // ===================================================================
-    // Évaluation des sorties logiques (DO1 / Relais 2), cf. I/O.11 / I/O.12
-    // ===================================================================
-    function evaluerSourceSortie(source) {
-        switch (source) {
-            case "Vitesse nulle": return vitesseReelle < (obtenirValeurParam("Apl07f") || 5);
-            case "Consigne atteinte": return ordreRunCourant && Math.abs(vitesseReelle - consigneCibleCourante) < 5;
-            case "Charge nominale atteinte": return courantMoteurSimule >= obtenirValeurParam("Mtr02") * 0.95;
-            case "Alarme surchauffe moteur": return false;
-            case "Alarme vitesse maximum": return vitesseReelle >= obtenirValeurParam("Spd01") * 0.98;
-            case "État sortie commande frein": return ordreRunCourant;
-            case "Sortie du comparateur 4": case "Sortie du comparateur 5": return false;
-            default: return false;
-        }
-    }
-    function majLeds() {
-        const do1 = evaluerSourceSortie(obtenirValeurParam("IO11"));
-        const r2 = evaluerSourceSortie(obtenirValeurParam("IO12"));
-        document.getElementById("led-do1").className = "led verte" + (do1 ? " actif" : "");
-        document.getElementById("led-r2").className = "led rouge" + (r2 ? " actif" : "");
-        document.getElementById("led-sto").className = "led verte" + (etatCablage.sto ? " actif" : "");
-    }
-
-    // ===================================================================
-    // Boucle physique du moteur (tick 50 ms)
-    // ===================================================================
-    function boucleMoteur() {
-        const ctr05 = obtenirValeurParam("Ctr05"), ctr06 = obtenirValeurParam("Ctr06");
-        const spd01 = obtenirValeurParam("Spd01"), spd02 = obtenirValeurParam("Spd02"), spd03 = obtenirValeurParam("Spd03");
-        const spd06 = obtenirValeurParam("Spd06"), spd07 = obtenirValeurParam("Spd07");
-
-        ordreRunCourant = false;
-        let sensDemande = sensInverseActuel;
-        if (!miseEnSecuriteActive && etatCablage.sto) {
-            if (ctr05 === "Par bornier") {
-                if (di[4] && !di[5]) { ordreRunCourant = true; sensDemande = false; }
-                else if (di[5] && !di[4]) { ordreRunCourant = true; sensDemande = true; }
-                else if (di[4] && di[5] && ctr06 === "M/A + inversion de sens") { ordreRunCourant = true; }
-            } else if (ctr05 === "Par console" && consoleCmdEnabled) {
-                if (consoleMarcheAV) { ordreRunCourant = true; sensDemande = false; }
-                else if (consoleMarcheAR) { ordreRunCourant = true; sensDemande = true; }
-            }
-        }
-        sensInverseActuel = sensDemande;
-
-        let consigneCible = 0.0;
-        if (ordreRunCourant) {
-            if (spd03 === "Par bornier") consigneCible = di[3] ? (tensionAI2 / 10.0) * spd01 : 0;
-            else if (spd03 === "Entrée analogique 1") consigneCible = 0;
-            else if (spd03 === "Entrée analogique 2") consigneCible = (tensionAI2 / 10.0) * spd01;
-            else if (spd03 === "Référence préréglée") consigneCible = di[2] ? obtenirValeurParam("Spd05") : obtenirValeurParam("Spd04");
-            else if (spd03 === "Console") consigneCible = consoleConsigne;
-            if (consigneCible > 0 && consigneCible < spd02) consigneCible = spd02;
-            consigneCible = Math.min(consigneCible, spd01);
-        }
-        consigneCibleCourante = consigneCible;
-
-        const pasAcc = (1000 / Math.max(spd06, 0.1)) * 0.05;
-        
+    // ============
