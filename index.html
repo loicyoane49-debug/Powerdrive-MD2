@@ -346,6 +346,20 @@
         <p style="color:#94a1b2; font-size:11px; margin-top:8px;">Si le document ne s'affiche pas, vérifie que le fichier <code>manuel-powerdrive-md2.pdf</code> est bien présent à la racine du site (à côté d'index.html).</p>
     </div>
 </div>
+<!-- SCRIPT DIAGNOSTIC : capture toute erreur JS et l'affiche directement dans la
+     console à l'écran (terminal-modbus), pour pouvoir diagnostiquer un problème
+     depuis un mobile sans avoir besoin des outils de développement du navigateur. -->
+<script>
+    window.addEventListener("error", function (e) {
+        try {
+            var el = document.getElementById("console-modbus");
+            var msg = "[ERREUR JS] " + e.message + " (ligne " + e.lineno + ")";
+            if (el) { el.innerHTML += msg + "<br>"; el.scrollTop = el.scrollHeight; }
+        } catch (ignored) {}
+        console.error("[ERREUR JS]", e.message, e.filename, e.lineno, e.error);
+    });
+</script>
+
 <!-- SCRIPT VÉRIFICATION CODE ET ACCÈS 72H -->
 <script>
     // URL de la Cloud Function de vérification de code (même mécanisme que le simulateur ATV320 ;
@@ -1008,30 +1022,38 @@
     // ===================================================================
     function renderEcran() {
         const ts = document.getElementById("touchscreen");
+        if (!ts) return;
         let bandeau = "";
-        if (miseEnSecuriteActive) {
-            bandeau = '<div class="ts-trip-banner">⚠ MISE EN SÉCURITÉ EN COURS : ' + miseEnSecuriteActive.libelle + '</div>';
-        } else if (alarmeActive) {
-            bandeau = '<div class="ts-alarm-banner">⚠ ALARME : ' + alarmeActive.libelle + '</div>';
-        }
+        try {
+            if (miseEnSecuriteActive) {
+                bandeau = '<div class="ts-trip-banner">⚠ MISE EN SÉCURITÉ EN COURS : ' + miseEnSecuriteActive.libelle + '</div>';
+            } else if (alarmeActive) {
+                bandeau = '<div class="ts-alarm-banner">⚠ ALARME : ' + alarmeActive.libelle + '</div>';
+            }
+        } catch (ignored) {}
         const topbar = '<div class="ts-topbar"><span class="marque">Powerdrive</span><span>' + formatDateHeure() + '</span></div>';
 
         let corps = "";
-        switch (ecranActuel) {
-            case "accueil": corps = ecranAccueil(); break;
-            case "menuPrincipal": corps = ecranMenuPrincipal(); break;
-            case "informations": corps = ecranInformations(); break;
-            case "modeLecture": corps = ecranModeLecture(); break;
-            case "parametrage": corps = ecranParametrage(); break;
-            case "paramRapide": corps = ecranParamRapide(); break;
-            case "paramAvance": corps = ecranParamAvance(); break;
-            case "sauvegarde": corps = ecranSauvegarde(); break;
-            case "paramConsole": corps = ecranParamConsole(); break;
-            case "ihmDateHeure": corps = ecranIhmDateHeure(); break;
-            case "commandeConsole": corps = ecranCommandeConsole(); break;
-            case "historique": corps = ecranHistorique(); break;
-            case "codeAcces": corps = ecranCodeAcces(); break;
-            default: corps = ecranAccueil();
+        try {
+            switch (ecranActuel) {
+                case "accueil": corps = ecranAccueil(); break;
+                case "menuPrincipal": corps = ecranMenuPrincipal(); break;
+                case "informations": corps = ecranInformations(); break;
+                case "modeLecture": corps = ecranModeLecture(); break;
+                case "parametrage": corps = ecranParametrage(); break;
+                case "paramRapide": corps = ecranParamRapide(); break;
+                case "paramAvance": corps = ecranParamAvance(); break;
+                case "sauvegarde": corps = ecranSauvegarde(); break;
+                case "paramConsole": corps = ecranParamConsole(); break;
+                case "ihmDateHeure": corps = ecranIhmDateHeure(); break;
+                case "commandeConsole": corps = ecranCommandeConsole(); break;
+                case "historique": corps = ecranHistorique(); break;
+                case "codeAcces": corps = ecranCodeAcces(); break;
+                default: corps = ecranAccueil();
+            }
+        } catch (e) {
+            console.error("[renderEcran] erreur sur l'écran « " + ecranActuel + " » :", e);
+            corps = '<div class="ts-content"><div style="color:#e53170;font-size:11px;">Erreur d\'affichage sur l\'écran « ' + ecranActuel + ' » : ' + e.message + '<br><br>Utilisez le bouton retour ci-dessus, ou rechargez la page.</div></div>';
         }
         ts.innerHTML = bandeau + topbar + corps;
     }
@@ -1258,27 +1280,4 @@
         return '<div class="ts-param-val">' + formatNombre(d.valeur) + ' ' + (d.unite || "") + '</div>' +
             (enEdition ? '<div style="font-size:9px;color:#888;text-align:right;">pas ' + d.pas + ' — ▲▼ Para pour ajuster</div>' : '');
     }
-    function ajusterValeurEnCoursEdition(d, delta) {
-        if (d.type === "enum") {
-            d.indexOpt = (d.indexOpt + delta + d.options.length) % d.options.length;
-        } else {
-            let v = d.valeur + delta * d.pas;
-            if (d.min !== undefined) v = Math.max(d.min, v);
-            if (d.max !== undefined) v = Math.min(d.max, v);
-            d.valeur = Math.round(v * 1000) / 1000;
-        }
-    }
-    function formatNombre(v) {
-        return (Math.round(v * 1000) / 1000).toString();
-    }
-
-    // --- Sauvegarde (3 jeux de paramètres, variateur <-> interface) ---
-    function ecranSauvegarde() {
-        let html = entete("Sauvegarde") + '<div class="ts-content"><div style="font-size:10px;color:#666;">Mémoire : 3 jeux de paramètres possibles.</div>';
-        for (let i = 0; i < 3; i++) {
-            const f = sauvegardeFichiers[i];
-            const sel = (i === sauvegardeSlotSelectionne);
-            html += '<div class="ts-menu-item ' + (sel ? "selectionne" : "") + '" onclick="selectionnerSlotSauvegarde(' + i + ')">Fichier ' + (i + 1) + ' : ' + (f ? (f.date + " " + f.heure) : "vide") + '</div>';
-        }
-        html += '<div style="display:flex;gap:6px;margin-top:6px;">' +
-            '<b
+    function aj
