@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Simulateur Procédural Powerdrive MD2 - Version Expert V1.0 avec Accès 72h</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            background-color: #16161a;
+            color: #fffffe;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        /* BOÎTE DE CONNEXION ÉTUDIANT */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(22, 22, 26, 0.95);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-card {
+            background: #242629; border: 2px solid #383a40; border-radius: 12px;
+            padding: 30px; width: 90%; max-width: 400px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        }
+        .login-card h2 { color: #2cb67d; margin-top: 0; font-size: 20px; }
+        .login-card input {
+            width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #383a40;
+            border-radius: 6px; background: #16161a; color: #fff; box-sizing: border-box;
+            text-align: center; font-size: 16px;
+        }
+        .login-card button {
+            width: 100%; padding: 12px; background: #2cb67d; color: #000; border: none;
+            border-radius: 6px; font-weight: bold; font-size: 15px; cursor: pointer;
+        }
+        #msg-erreur { color: #e53170; font-size: 13px; margin-top: 12px; }
+
+        /* SIMULATEUR (Caché par défaut) */
+        #main-app { display: none; width: 100%; max-width: 1440px; flex-direction: column; align-items: center; }
+
+        .barre-outils {
+            display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;
+            justify-content: center; align-items: center; width: 100%;
+        }
+        .btn-outil {
+            background: #2cb67d; color: #010101; border: none; padding: 8px 14px;
+            border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(44, 182, 125, 0.2);
+        }
+        .btn-outil.doc { background: #008055; color: #fff; }
+        .btn-outil.challenge { background: #ff8e3c; color: #fff; }
+        .btn-outil.json { background: #7f5af0; color: #fff; }
+        .btn-outil.reset-cache { background: #e53170; color: #fff; }
+
+        .tag-save {
+            font-size: 11px; color: #2cb67d; background: #102a20; border: 1px solid #2cb67d;
+            padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;
+            transition: opacity 0.3s ease;
+        }
+
+        .plateforme { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; max-width: 1440px; width: 100%; }
+
+        /* ===== ÉCRAN TACTILE MDX-POWERSCREEN ===== */
+        .variateur { background-color: #242629; padding: 16px; border-radius: 12px; border: 2px solid #383a40; width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); box-sizing: border-box; }
+        .touchscreen {
+            background: #dff1ec; color: #16161a; border-radius: 6px; overflow: hidden;
+            box-shadow: inset 0 0 0 3px #0f0e17, 0 0 10px rgba(0,0,0,0.8);
+            height: 400px; display: flex; flex-direction: column; font-size: 12px;
+        }
+        .ts-topbar {
+            background: #16161a; color: #fffffe; display: flex; justify-content: space-between;
+            align-items: center; padding: 5px 8px; font-size: 10px; flex-shrink: 0;
+        }
+        .ts-topbar .marque { font-weight: bold; color: #2cb67d; font-style: italic; }
+        .ts-header {
+            background: #7f5af0; color: #fff; padding: 6px 8px; font-weight: bold; font-size: 11px;
+            display: flex; align-items: center; gap: 6px; flex-shrink: 0; min-height: 32px;
+        }
+        .ts-back {
+            width: 20px; height: 20px; border-radius: 50%; background: #2cb67d; color: #000;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            font-weight: bold; font-size: 12px; flex-shrink: 0; border: none;
+        }
+        .ts-content { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .ts-footer {
+            display: flex; justify-content: center; align-items: center; padding: 6px;
+            background: #c9e4dd; flex-shrink: 0; gap: 10px;
+        }
+        .ts-stop {
+            width: 30px; height: 30px; border-radius: 50%; background: #e53170; border: 2px solid #fff;
+            color: #fff; font-weight: bold; cursor: pointer; box-shadow: 0 0 6px rgba(0,0,0,0.4);
+        }
+        .ts-menu-item {
+            background: #fff; border: 1px solid #a7c4bc; border-radius: 4px; padding: 8px 10px;
+            display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: bold; font-size: 12px;
+        }
+        .ts-menu-item:active, .ts-menu-item.selectionne { background: #2cb67d; color: #000; }
+        .ts-menu-item .ic { font-size: 14px; }
+        .ts-info-row { display: flex; justify-content: space-between; background: #fff; border-radius: 4px; padding: 6px 8px; }
+        .ts-info-row span:first-child { color: #555; }
+        .ts-info-row span:last-child { font-weight: bold; }
+        .ts-nav-row { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+        .ts-btn-nav {
+            background: #2cb67d; color: #000; border: none; border-radius: 4px; padding: 6px 10px;
+            font-weight: bold; cursor: pointer; font-size: 14px;
+        }
+        .ts-btn-nav:disabled { background: #99a1a8; cursor: not-allowed; }
+        .ts-mesure-box { background: #fff; border-radius: 4px; padding: 8px; flex: 1; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+        .ts-mesure-label { font-size: 10px; color: #7f5af0; font-weight: bold; }
+        .ts-mesure-val { font-size: 20px; font-weight: bold; text-align: right; font-family: 'Courier New', monospace; }
+        .ts-mesure-unit { font-size: 11px; color: #555; text-align: right; }
+        .ts-param-screen { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+        .ts-param-titre-menu { font-size: 9px; color: #7f5af0; }
+        .ts-param-nom { font-size: 12px; font-weight: bold; color: #16161a; }
+        .ts-param-adresse { font-size: 9px; color: #888; }
+        .ts-param-valbox { background: #fff; border-radius: 4px; padding: 8px; margin-top: 4px; flex: 1; overflow-y: auto; }
+        .ts-param-valbox.editable { background: #ffffff; border: 2px solid #2cb67d; }
+        .ts-param-valbox.readonly { background: #d7e6e2; }
+        .ts-param-val { font-size: 16px; font-weight: bold; text-align: right; font-family: 'Courier New', monospace; }
+        .ts-enum-option { padding: 4px 6px; border-bottom: 1px solid #eee; font-size: 11px; }
+        .ts-enum-option.actif { background: #2cb67d; color: #000; font-weight: bold; border-radius: 3px; }
+        .ts-menu-selector { display:flex; align-items:center; justify-content:space-between; background:#16161a; color:#fff; border-radius:4px; padding: 4px 6px; }
+        .ts-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 4px; }
+        .ts-numpad button { padding: 8px; font-size: 13px; font-weight: bold; border: none; border-radius: 4px; background: #fff; cursor: pointer; }
+        .ts-code-display { background: #fff; text-align: center; font-size: 18px; letter-spacing: 4px; padding: 6px; border-radius: 4px; font-family: monospace; }
+        .ts-trip-banner { background: #e53170; color: #fff; padding: 6px 8px; font-size: 11px; font-weight: bold; text-align: center; flex-shrink: 0; }
+        .ts-alarm-banner { background: #ff8e3c; color: #000; padding: 6px 8px; font-size: 11px; font-weight: bold; text-align: center; flex-shrink: 0; }
+        .ts-hist-item { background: #fff; border-radius: 4px; padding: 6px 8px; font-size: 10px; }
+        .ts-hist-item .d { color: #888; }
+        .ts-toggle-row { display:flex; justify-content:space-between; align-items:center; background:#fff; border-radius:4px; padding:6px 8px; }
+        .ts-toggle-btn { background:#99a1a8; color:#fff; border:none; border-radius:4px; padding:4px 10px; font-weight:bold; cursor:pointer; font-size:11px; }
+        .ts-toggle-btn.on { background:#2cb67d; color:#000; }
+        .ts-console-btns { display:flex; gap:6px; }
+        .ts-console-btns button { flex:1; padding:8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:11px; }
+
+        .panneau-relais { display: flex; justify-content: space-around; background: #16161a; padding: 8px; border-radius: 6px; margin-top: 12px; border: 1px solid #383a40; }
+        .voyant-box { text-align: center; font-size: 10px; color: #94a1b2; }
+        .led { width: 14px; height: 14px; border-radius: 50%; background: #444; margin: 4px auto 0 auto; box-shadow: 0 0 4px #000; }
+        .led.verte.actif { background: #2cb67d; box-shadow: 0 0 10px #2cb67d; }
+        .led.rouge.actif { background: #e53170; box-shadow: 0 0 10px #e53170; }
+
+        .carte-bornier { background: #242629; border: 2px solid #383a40; border-radius: 12px; padding: 15px; width: 320px; box-sizing: border-box; }
+        .section-title { font-size: 12px; color: #2cb67d; font-weight: bold; margin-bottom: 8px; text-align: center; border-bottom: 1px solid #383a40; padding-bottom: 4px; }
+        .cablan-item { display: flex; justify-content: space-between; align-items: center; background: #16161a; padding: 6px 10px; border-radius: 4px; margin-bottom: 6px; font-size: 11px; }
+        .btn-fil { background: #e53170; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 10px; }
+        .btn-fil.connecte { background: #2cb67d; color: #000; }
+
+        .interrupteurs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+        .switch-container { text-align: center; font-size: 9px; background: #16161a; padding: 4px; border-radius: 4px; }
+        .switch-btn { background: #555; color: white; border: none; padding: 4px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
+        .switch-btn.active { background: #7f5af0; }
+
+        .carte-visu { background: #242629; border: 2px solid #383a40; border-radius: 12px; padding: 15px; width: 330px; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+        canvas { background: #0f0e17; border: 1px solid #383a40; border-radius: 6px; width: 100%; height: 80px; }
+
+        .carte-droite { background: #242629; border: 2px solid #383a40; border-radius: 12px; padding: 15px; width: 340px; box-sizing: border-box; }
+        .chrono-box { background: #ff8e3c; color: #000; text-align: center; font-weight: bold; padding: 6px; border-radius: 6px; margin-bottom: 10px; font-size: 14px; display: none; }
+
+        .champs-etudiant { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+        .input-etudiant { background: #16161a; border: 1px solid #383a40; color: white; padding: 6px; border-radius: 4px; width: 100%; box-sizing: border-box; font-size: 11px; }
+        .select-tp { width: 100%; background: #16161a; color: #2cb67d; border: 1px solid #383a40; padding: 6px; border-radius: 4px; font-weight: bold; margin-bottom: 8px; font-size: 11px; }
+        .consigne-box { background: #16161a; padding: 8px; border-radius: 6px; font-size: 11px; margin-bottom: 8px; line-height: 1.3; border-left: 3px solid #7f5af0; }
+
+        .btn-action { background: #2cb67d; color: #000; border: none; padding: 8px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; margin-top: 4px; }
+        .btn-preview-pdf { background: #7f5af0; color: #fff; display: none; margin-top: 6px; }
+        .btn-pdf { background: #ff8e3c; color: #000; display: none; margin-top: 6px; }
+        .terminal-modbus { background: #0f0e17; border: 1px solid #383a40; border-radius: 6px; height: 60px; padding: 4px; font-family: monospace; font-size: 9px; color: #2cb67d; overflow-y: auto; margin-top: 8px; }
+
+        .conteneur-pdf-viewer {
+            display: none; width: 100%; max-width: 1400px; margin-top: 20px;
+            background: #242629; border: 2px solid #383a40; border-radius: 12px; padding: 15px; box-sizing: border-box;
+        }
+        .visionneuse-papier {
+            background: #ffffff; color: #111111; padding: 30px; border-radius: 6px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5); font-family: Arial, sans-serif; font-size: 13px; line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            .barre-outils { flex-direction: column; align-items: stretch; }
+            .btn-outil { width: 100%; text-align: center; }
+            .variateur, .carte-bornier, .carte-visu, .carte-droite { width: 100%; }
+        }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- 1. ÉCRAN DE CONNEXION -->
+<div id="login-overlay">
+    <div class="login-card">
+        <h2>🔑 Accès Travaux Pratiques</h2>
+        <p style="font-size: 12px; color: #94a1b2;">Entrez le code fourni par votre formateur</p>
+        <input type="text" id="codeEtudiant" placeholder="Code d'accès (ex: TP1-2026)">
+        <button onclick="seConnecter()">Se Connecter</button>
+        <div id="msg-erreur"></div>
+    </div>
+</div>
+
+<!-- 2. APPLI PRINCIPALE / SIMULATEUR POWERDRIVE MD2 -->
+<div id="main-app">
+    <div class="barre-outils">
+        <button class="btn-outil doc" onclick="document.getElementById('modal-doc').style.display='flex'">📖 Doc Technique MD2</button>
+        <button class="btn-outil doc" onclick="document.getElementById('modal-manuel-pdf').style.display='flex'">📄 Lire le Manuel MD2</button>
+        <button class="btn-outil json" onclick="exporterJSON()">💾 Exporter Config (JSON)</button>
+        <button class="btn-outil json" onclick="document.getElementById('import-json').click()">📂 Importer Config</button>
+        <input type="file" id="import-json" accept=".json" onchange="importerJSON(event)">
+        <button class="btn-outil challenge" onclick="lancerChallenge()">⏱️ Mode Challenge Dépannage</button>
+        <button class="btn-outil" style="background:#e53170; color:#fff;" onclick="reinitialiserDefauts()">🔄 Acquit Mise en Sécurité</button>
+        <button class="btn-outil reset-cache" onclick="effacerLocalStorage()">🗑️ Réinitialiser TP</button>
+        <div class="tag-save" id="tag-save">💾 Auto-sauvegardé</div>
+    </div>
+
+    <div class="plateforme">
+        <!-- ===== ÉCRAN TACTILE MDX-POWERSCREEN ===== -->
+        <div class="variateur">
+            <div class="touchscreen" id="touchscreen">
+                <!-- rempli dynamiquement par renderEcran() -->
+            </div>
+            <div class="panneau-relais">
+                <div class="voyant-box">DO1<div class="led verte" id="led-do1"></div></div>
+                <div class="voyant-box">Relais 2<div class="led rouge" id="led-r2"></div></div>
+                <div class="voyant-box">STO 1/2<div class="led verte" id="led-sto"></div></div>
+            </div>
+        </div>
+
+        <div class="carte-bornier">
+            <div class="section-title">🔌 Câblage Bornier Virtuel</div>
+            <div class="cablan-item">
+                <span>L1 - L2 - L3 (Alim réseau)</span>
+                <button class="btn-fil connecte" id="btn-cabl-alim" onclick="basculerCablage('alim')">RACCORDÉ</button>
+            </div>
+            <div class="cablan-item">
+                <span>U - V - W (Ligne Moteur)</span>
+                <button class="btn-fil connecte" id="btn-cabl-mot" onclick="basculerCablage('moteur')">RACCORDÉ</button>
+            </div>
+            <div class="cablan-item">
+                <span>STO-1 / STO-2 (Sécurité)</span>
+                <button class="btn-fil connecte" id="btn-cabl-sto" onclick="basculerCablage('sto')">FERMÉES</button>
+            </div>
+            <div class="section-title" style="margin-top: 10px;">Entrée analogique AI2 (potentiomètre)</div>
+            <div style="background: #16161a; padding: 8px; border-radius: 6px; text-align: center; font-size: 11px;">
+                <div>AI2 : <strong id="val-ai2" style="color: #2cb67d;">5.0 V</strong></div>
+                <input type="range" min="0" max="10" step="0.1" value="5" style="width:100%; accent-color:#2cb67d;" id="slider-ai2" oninput="ajusterAI2(this.value)">
+            </div>
+            <div class="section-title" style="margin-top: 10px;">Entrées Logiques DI1-DI5</div>
+            <div class="interrupteurs">
+                <div class="switch-container"><div id="lbl-di1">DI1</div><button class="switch-btn" id="sw-di1" onclick="basculerDI(1)">OFF</button></div>
+                <div class="switch-container"><div id="lbl-di2">DI2 (Sél. RP1/RP2)</div><button class="switch-btn" id="sw-di2" onclick="basculerDI(2)">OFF</button></div>
+                <div class="switch-container"><div id="lbl-di3">DI3 (Sél. AI1/AI2)</div><button class="switch-btn" id="sw-di3" onclick="basculerDI(3)">OFF</button></div>
+                <div class="switch-container"><div id="lbl-di4">DI4 (Marche AV)</div><button class="switch-btn" id="sw-di4" onclick="basculerDI(4)">OFF</button></div>
+                <div class="switch-container"><div id="lbl-di5">DI5 (Marche AR)</div><button class="switch-btn" id="sw-di5" onclick="basculerDI(5)">OFF</button></div>
+            </div>
+        </div>
+
+        <div class="carte-visu">
+            <div class="section-title">📉 Profil de Vitesse f(t) en Temps Réel (min⁻¹)</div>
+            <canvas id="graph-vitesse"></canvas>
+            <div class="section-title">📊 Signal PWM MLI (Découpage IGBT)</div>
+            <canvas id="oscillo-mli"></canvas>
+            <div class="section-title">📈 Courant moteur total (A)</div>
+            <canvas id="graph-courant"></canvas>
+        </div>
+
+        <div class="carte-droite">
+            <div class="chrono-box" id="chrono-box">⏱️ Temps Challenge : <span id="chrono-val">00:00</span></div>
+            <div class="champs-etudiant">
+                <input type="text" id="nom-etudiant" class="input-etudiant" placeholder="Nom" oninput="sauvegarderDansLocalStorage()">
+                <input type="text" id="prenom-etudiant" class="input-etudiant" placeholder="Prénom" oninput="sauvegarderDansLocalStorage()">
+            </div>
+            <select id="select-tp" class="select-tp" onchange="changerTP()">
+                <option value="tp1">TP 1 : Vérification Réglages d'Usine</option>
+                <option value="tp2">TP 2 : Plaque Signalétique Moteur</option>
+                <option value="tp3">TP 3 : Sorties Logiques DO1 / Relais 2</option>
+                <option value="tp4">TP 4 : Rampes Accél./Décél. et Vitesses</option>
+                <option value="tp5">TP 5 : Application Centrifuge (Apl)</option>
+            </select>
+            <div class="consigne-box" id="consigne-tp"></div>
+            <button class="btn-action" onclick="evaluerTP()">Valider la Procédure</button>
+            <button class="btn-action btn-preview-pdf" id="btn-preview-pdf" onclick="afficherLecturePDF()">👁️ Prévisualiser / Lire PDF</button>
+            <button class="btn-action btn-pdf" id="btn-pdf" onclick="exporterPDF()">📥 Télécharger Bilan PDF</button>
+            <div id="resultat-tp" style="margin-top:8px; font-size:11px; padding:6px; border-radius:4px; display:none;"></div>
+            <div class="terminal-modbus" id="console-modbus">[SYS] Initialisation liaison série MDX-Powerscreen...<br></div>
+        </div>
+    </div>
+
+    <div class="conteneur-pdf-viewer" id="conteneur-pdf-viewer">
+        <div class="section-title" style="margin-bottom: 12px;">📄 Document Bilan TP (Aperçu PDF)</div>
+        <div class="visionneuse-papier" id="document-pdf-render"></div>
+    </div>
+</div>
+
+<!-- DOCUMENTATION TECHNIQUE -->
+<div id="modal-doc" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:999; justify-content:center; align-items:center;">
+    <div style="background:#242629; border:2px solid #383a40; border-radius:12px; width:92%; max-width:900px; max-height:88vh; overflow-y:auto; padding:20px; color:#fffffe; font-size:13px; line-height:1.5;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #2cb67d; padding-bottom:8px; margin-bottom:15px;">
+            <h2 style="margin:0; color:#2cb67d; font-size:18px;">📖 Guide & Documentation Technique Powerdrive MD2</h2>
+            <button onclick="document.getElementById('modal-doc').style.display='none'" style="background:#e53170; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">✕ Fermer</button>
+        </div>
+        <p><strong>Structure :</strong> Interface tactile MDX-Powerscreen → Informations / Mode lecture / Paramétrage (Rapide, Avancé, Sauvegarde, Paramétrage console, IHM-Date/Heure) / Commande par console / Historique des mises en sécurité.</p>
+        <p style="color:#94a1b2; font-size:12px;">Source : Guide de mise en service Powerdrive MD2, réf. 4617 fr - 2020.07/h (Nidec Leroy-Somer). Paramètres du mode Paramétrage Rapide (menus Ctr, Mtr, Spd, I/O, Apl) essentiels à la mise en service, et Menus Avancé 16 (Fonctions d'automatisme) et 17 (Diagnostics) en extraction complète ; menus Avancé 13, 15, 18, 20, 21 non modélisés et menu 19 sans paramètre natif documenté dans le manuel (voir note de couverture).</p>
+        <div id="doc-tableaux-params"></div>
+
+        <h3 style="color:#2cb67d; margin-top:20px;">🖥️ État de fonctionnement (paramètre 10.98)</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:12px;" id="doc-table-etats"></table>
+
+        <h3 style="color:#2cb67d; margin-top:20px;">⚠️ Mises en sécurité les plus courantes (Chap.7.4 du manuel)</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:12px;" id="doc-table-defauts"></table>
+
+        <h3 style="color:#2cb67d; margin-top:20px;">🔌 Bornier — noms des entrées/sorties</h3>
+        <ul style="font-size:12px; padding-left:18px;">
+            <li><strong>DI1...DI5</strong> : entrées logiques configurables (adresses 08.21 à 08.25)</li>
+            <li><strong>AI1...AI3</strong> : entrées analogiques différentielles — <strong>AO1</strong> : sortie analogique</li>
+            <li><strong>DO1</strong> : sortie logique — <strong>Relais 2 (RL2)</strong> : sortie relais</li>
+            <li><strong>STO-1, STO-2</strong> : entrées de sécurité Safe Torque Off (ouvertes = variateur verrouillé)</li>
+        </ul>
+
+        <h3 style="color:#2cb67d; margin-top:20px;">⌨️ Navigation IHM tactile</h3>
+        <ul style="font-size:12px; padding-left:18px;">
+            <li><strong>Touche B (page d'accueil)</strong> : accès à la page principale (5 boutons tactiles)</li>
+            <li><strong>Touche retour universelle</strong> (icône ronde en haut de chaque écran) : revient à l'écran précédent, jusqu'à la page principale</li>
+            <li><strong>Touche Arrêt/Reset</strong> (icône rouge, présente sur tous les écrans en réglage usine) : ordre d'arrêt ou reset d'une mise en sécurité</li>
+            <li><strong>Flèches Menu / Para</strong> : en Paramétrage Rapide et Avancé, choix du menu (gauche/droite) puis du numéro de paramètre (haut/bas)</li>
+        </ul>
+    </div>
+</div>
+
+<!-- LECTURE DU MANUEL PDF -->
+<div id="modal-manuel-pdf" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; justify-content:center; align-items:center;">
+    <div style="background:#242629; border:2px solid #383a40; border-radius:12px; width:95%; max-width:1000px; height:90vh; padding:15px; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #2cb67d; padding-bottom:8px; margin-bottom:10px;">
+            <h2 style="margin:0; color:#2cb67d; font-size:16px;">📄 Guide de mise en service Powerdrive MD2 (4617 fr-2020.07/h)</h2>
+            <div>
+                <a href="manuel-powerdrive-md2.pdf" download style="color:#fffffe; text-decoration:none; background:#7f5af0; padding:6px 12px; border-radius:4px; font-size:12px; margin-right:8px;">⬇ Télécharger</a>
+                <button onclick="document.getElementById('modal-manuel-pdf').style.display='none'" style="background:#e53170; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">✕ Fermer</button>
+            </div>
+        </div>
+        <iframe id="iframe-manuel-pdf" src="manuel-powerdrive-md2.pdf" style="flex:1; width:100%; border:none; border-radius:6px; background:#fff;"></iframe>
+        <p style="color:#94a1b2; font-size:11px; margin-top:8px;">Si le document ne s'affiche pas, vérifie que le fichier <code>manuel-powerdrive-md2.pdf</code> est bien présent à la racine du site (à côté d'index.html).</p>
+    </div>
+</div>
+<!-- SCRIPT DIAGNOSTIC : capture toute erreur JS et l'affiche directement dans la
+     console à l'écran (terminal-modbus), pour pouvoir diagnostiquer un problème
+     depuis un mobile sans avoir besoin des outils de développement du navigateur. -->
+<script>
+    window.addEventListener("error", function (e) {
+        try {
+            var el = document.getElementById("console-modbus");
+            var msg = "[ERREUR JS] " + e.message + " (ligne " + e.lineno + ")";
+            if (el) { el.innerHTML += msg + "<br>"; el.scrollTop = el.scrollHeight; }
+        } catch (ignored) {}
+        console.error("[ERREUR JS]", e.message, e.filename, e.lineno, e.error);
+    });
+</script>
+
+<!-- SCRIPT VÉRIFICATION CODE ET ACCÈS 72H -->
+<script>
+    // URL de la Cloud Function de vérification de code (même mécanisme que le simulateur ATV320 ;
+    // à adapter par le formateur si un endpoint dédié à ce TP doit être utilisé).
+    const URL_VERIFICATION = "https://atv320-verify-code.loicyoane49.workers.dev";
+
+    const DUREE_72H_MS = 3 * 24 * 60 * 60 * 1000;
+    const CLE_LOCALSTORAGE_ACCES = "powerdriveMD2_access_start";
+
+    window.seConnecter = async function() {
+        const codeSaisi = document.getElementById("codeEtudiant").value.trim();
+        const msg = document.getElementById("msg-erreur");
+        msg.innerText = "";
+
+        if (!codeSaisi) {
+            msg.innerText = "Veuillez entrer un code d'accès.";
+            return;
+        }
+
+        try {
+            const reponse = await fetch(URL_VERIFICATION + "?code=" + encodeURIComponent(codeSaisi));
+            const data = await reponse.json();
+
+            if (!data.valid) {
+                msg.innerText = "Code d'accès incorrect.";
+                return;
+            }
+
+            localStorage.setItem(CLE_LOCALSTORAGE_ACCES, Date.now().toString());
+            lancerApplication();
+        } catch (e) {
+            console.error(e);
+            msg.innerText = "Erreur de connexion au serveur.";
+        }
+    };
+
+    function verifierAccesExistant() {
+        const debut = localStorage.getItem(CLE_LOCALSTORAGE_ACCES);
+        if (!debut) return false;
+
+        const tempsEcoule = Date.now() - parseInt(debut, 10);
+        if (tempsEcoule < DUREE_72H_MS) {
+            lancerApplication();
+            return true;
+        }
+
+        localStorage.removeItem(CLE_LOCALSTORAGE_ACCES);
+        return false;
+    }
+
+    function lancerApplication() {
+        document.getElementById("login-overlay").style.display = "none";
+        document.getElementById("main-app").style.display = "flex";
+    }
+
+    verifierAccesExistant();
+</script>
+<!-- SCRIPT SIMULATEUR POWERDRIVE MD2 : MODÈLE DE DONNÉES -->
+<script>
+    const STORAGE_KEY = "POWERDRIVE_MD2_SIMULATOR_STATE_V1";
+
+    // ===================================================================
+    // Listes d'options partagées entre plusieurs paramètres (manuel §4.1)
+    // ===================================================================
+    const OPT_NON_OUI = ["Non", "Oui"];
+    const OPT_DEVALIDE_VALIDE = ["Dévalidé", "Validé"];
+    const OPT_DEVALIDEE_VALIDEE = ["Dévalidée", "Validée"];
+    const OPT_DI_DEST = ["Aucune", "Sélection Réf. par bornier (bit 0)", "Sélection Réf. préréglée (bit 0)",
+        "Marche avant", "Marche par impulsions", "Marche arrière", "Inversion avant/arrière",
+        "Marche/arrêt", "Arrêt", "Effacement mise en sécurité", "Entrée +vite", "Entrée -vite",
+        "RAZ manuelle référence +vite,-vite"];
+    const OPT_DO_SRC = ["Aucune", "Vitesse nulle", "Consigne atteinte", "Charge nominale atteinte",
+        "Alarme surchauffe moteur", "Alarme vitesse maximum", "État sortie commande frein",
+        "Sortie du comparateur 4", "Sortie du comparateur 5"];
+    const OPT_AI_DETECT6 = ["0-20 mA", "20-0 mA", "4-20 mA avec détection", "20-4 mA avec détection",
+        "4-20mA sans détection", "20-4mA sans détection"];
+    const OPT_AI3_FULL = OPT_AI_DETECT6.concat(["0-10 V", "+/-10 V"]);
+    const OPT_COMP_DEST = ["Aucune", "Mise en sécurité utilisateur 1", "Mise en sécurité utilisateur 2",
+        "Mise en sécurité utilisateur 3", "Mise en sécurité utilisateur 4"];
+    const OPT_PID_SRC = ["Aucune", "Entrée analogique AI1", "Entrée analogique AI2", "Entrée analogique AI3", "Variable tampon 1"];
+    const OPT_PID_DEST = ["Aucune", "RP1 : Référence préréglée", "RP2 : Référence préréglée",
+        "RP3 : Référence préréglée", "RP4 : Référence préréglée"];
+
+    // ===================================================================
+    // Définition des 79 paramètres du mode "Paramétrage Rapide", extraits
+    // du manuel §4.1 (tableaux) et §4.2 (explications), pages 17 à 34.
+    // Chaque paramètre porte son adresse native (Menu.Paramètre) permettant
+    // sa correspondance directe avec le mode "Avancé" (§5 du manuel).
+    // ===================================================================
+    const defsMD2 = [
+        // --- MENU Ctr : CONTRÔLE DE BASE DU MOTO-VARIATEUR (p.17-18, 22-25) ---
+        {paramKey:"Ctr01", groupeQuick:"Ctr", adresse:"11.43", nom:"Retour aux réglages usine", type:"enum",
+            options:["Aucune","Application centrifuge","Application avec moteur frein","Autre Application"], indexOpt:0,
+            desc:"Relance une réinitialisation aux réglages usine ; adapte en option le menu Rapide à une application type (centrifuge / moteur frein)."},
+        {paramKey:"Ctr02", groupeQuick:"Ctr", adresse:"11.30", nom:"Choix de la technologie moteur", type:"enum",
+            options:["Aucune","Asynchrone : ctrl. vectoriel en tension","Asynchrone : ctrl. de flux orienté","NC","PM : ctrl. de flux orienté (LSRPM)","NC","PMaSR : ctrl. de flux orienté (LSHRM)"], indexOpt:0,
+            desc:"Règle la technologie moteur et la méthode de contrôle ; conditionne l'affichage de plusieurs paramètres Mtr et Spd (voir 11.30 en mode Avancé pour la liste complète)."},
+        {paramKey:"Ctr03", groupeQuick:"Ctr", adresse:"05.18", nom:"Fréquence de découpage", type:"enum", unite:"kHz",
+            options:["2","2.5","3","3.5","4","4.5","5","5.5","6","6.5","7","8","9","10","11","12","13","14","16","18"], indexOpt:2,
+            desc:"Règle la fréquence de découpage de la MLI. Une fréquence élevée réduit le bruit acoustique mais augmente l'échauffement du variateur."},
+        {paramKey:"Ctr04", groupeQuick:"Ctr", adresse:"04.07", nom:"Limite de courant symétrique", type:"num",
+            min:0.0, max:300.0, pas:5.0, valeur:110.0, unite:"%",
+            desc:"Fixe la limitation de courant maximum permanent autorisé (% du courant variateur actif)."},
+        {paramKey:"Ctr05", groupeQuick:"Ctr", adresse:"06.43", nom:"Origine des commandes", type:"enum",
+            options:["Par bornier","Par bus","Inactif","Par console"], indexOpt:0,
+            desc:"Sélectionne l'origine des ordres de Marche/Arrêt : bornier de contrôle, bus de terrain, ou interface de paramétrage (console)."},
+        {paramKey:"Ctr06", groupeQuick:"Ctr", adresse:"06.04", nom:"Logique des commandes", type:"enum",
+            options:["M/A maintenu","M/A impulsionnel","M/A + inversion de sens","M/A commandé"], indexOpt:3,
+            desc:"En mode «Par bornier», choisit entre 4 modes de gestion des commandes Marche/Arrêt et du sens de rotation sur DI4/DI5."},
+        {paramKey:"Ctr07", groupeQuick:"Ctr", adresse:"01.10", nom:"Validation référence bipolaire", type:"enum",
+            options:OPT_NON_OUI, indexOpt:0,
+            desc:"Si «Oui», permet le changement de sens de rotation par la polarité de la référence (sinon les références négatives sont traitées comme nulles)."},
+        {paramKey:"Ctr08", groupeQuick:"Ctr", adresse:"06.01", nom:"Mode d'arrêt", type:"enum",
+            options:["Roue libre","Rampe","Rampe + DC","DC vitesse nulle","DC temporisé"], indexOpt:1,
+            desc:"Détermine le comportement du variateur sur un ordre d'arrêt (roue libre, rampe de décélération, ou injection de courant continu)."},
+        {paramKey:"Ctr09", groupeQuick:"Ctr", adresse:"06.09", nom:"Reprise à la volée", type:"enum",
+            options:["Dévalidée","Validée","Arrêt moteur avant redémarrage"], indexOpt:0,
+            desc:"Permet de redémarrer en douceur sur un moteur déjà en rotation (ex : après coupure réseau), en recalant la fréquence de sortie."},
+        {paramKey:"Ctr10", groupeQuick:"Ctr", adresse:"06.03", nom:"Gestion des micro-coupures", type:"enum",
+            options:["Dévalidée","Arrêt","Arrêt différé"], indexOpt:0,
+            desc:"Comportement du variateur en cas de coupure réseau brève (applications éligibles : ventilation, centrifugation...)."},
+        {paramKey:"Ctr11", groupeQuick:"Ctr", adresse:"10.80", nom:"Type d'effacement des mises en sécurité", type:"enum",
+            options:["Commandé","Automatique","Auto de 1081,1082,1083,1084","Auto sauf 1081,1082,1083,1084"], indexOpt:0,
+            desc:"Définit comment les mises en sécurité sont effacées : commande Reset manuelle, ou effacement automatique."},
+        {paramKey:"Ctr12", groupeQuick:"Ctr", adresse:"05.59", nom:"Sens de rotation", type:"enum",
+            options:["Horaire","Anti-horaire"], indexOpt:0,
+            desc:"Modifie le sens de rotation vu du bout d'arbre, sans changer le signe de la consigne. Pris en compte uniquement à l'arrêt."},
+        {paramKey:"Ctr13", groupeQuick:"Ctr", adresse:"05.14", nom:"Sélection du mode boucle ouverte", type:"enum",
+            options:["Rs mesuré à chaque marche","Rs non mesuré","U/F linéaire avec boost","Rs mesuré après retour réglages usine","Rs mesuré à chaque mise sous tension","U/F quadratique"], indexOpt:4,
+            desc:"Détermine le mode de contrôle en tension (méthode d'identification de la résistance statorique pour le contrôle vectoriel)."},
+        {paramKey:"Ctr14", groupeQuick:"Ctr", adresse:"05.12", nom:"Autocalibrage", type:"enum",
+            options:["Non","Sans rotation : paramètres moteur renseignés","Avec rotation : paramètres moteur incomplets","Mesure d'offset codeur/ positionnement du rotor","Mesure d'offset codeur / injection de signaux","Sans rotation : paramètres moteur non renseignés","Réservé"], indexOpt:0,
+            desc:"Lance la procédure d'autocalibrage moteur (mesure de la résistance statorique, du Cos Phi, etc.)."},
+
+        // --- MENU Mtr : PLAQUE MOTEUR (p.18-19, 28-30) ---
+        {paramKey:"Mtr01", groupeQuick:"Mtr", adresse:"05.06", nom:"Fréquence nominale moteur", type:"num",
+            min:0.01, max:590.0, pas:1.0, valeur:50.00, unite:"Hz",
+            desc:"Fréquence relevée sur la plaque signalétique moteur, point où le fonctionnement passe de couple constant à puissance constante."},
+        {paramKey:"Mtr02", groupeQuick:"Mtr", adresse:"05.07", nom:"Courant nominal moteur", type:"num",
+            min:0.0, max:9.24, pas:0.1, valeur:3.15, unite:"A",
+            desc:"Courant nominal moteur relevé sur la plaque signalétique. Sert notamment à définir l'état thermique du moteur.",
+            note:"Plage réelle = 0,00 à 2,2 x 11.32 (courant nominal variateur, ex. spécifique) ; réglage usine = 75% x 11.32. Une valeur d'exemple (variateur 4,2 A) a été fixée ici pour la simulation — voir note de couverture."},
+        {paramKey:"Mtr03", groupeQuick:"Mtr", adresse:"05.08", nom:"Vitesse nominale moteur", type:"num",
+            min:0.0, max:60000.0, pas:10.0, valeur:1500.00, unite:"min⁻¹",
+            desc:"Vitesse en charge relevée sur la plaque signalétique. Doit prendre en compte le glissement du moteur asynchrone."},
+        {paramKey:"Mtr04", groupeQuick:"Mtr", adresse:"05.09", nom:"Tension nominale moteur", type:"num",
+            min:0, max:999, pas:10, valeur:400, unite:"V",
+            desc:"Tension relevée sur la plaque signalétique, en cohérence avec les conditions normales d'alimentation."},
+        {paramKey:"Mtr05", groupeQuick:"Mtr", adresse:"05.10", nom:"Cos PHI moteur", type:"num",
+            min:0.0, max:1.0, pas:0.01, valeur:0.85,
+            desc:"Mesuré automatiquement lors d'un autocalibrage avec rotation (Ctr.14), sinon à renseigner depuis la plaque signalétique."},
+        {paramKey:"Mtr06", groupeQuick:"Mtr", adresse:"05.70", nom:"Gestion de la protection thermique moteur", type:"enum",
+            options:["Dévalidé","Entrée carte contrôle","Entrée de la MDX Encoder","Entrées carte contrôle & MDX Encoder"], indexOpt:0,
+            desc:"Prise en compte d'une sonde thermique CTP moteur raccordée au bornier de contrôle ou à l'option MDX-Encoder."},
+        {paramKey:"Mtr07", groupeQuick:"Mtr", adresse:"05.50", nom:"Type de ventilation du moteur", type:"enum",
+            options:["Non ventilé","Auto ventilé","Moto ventilé"], indexOpt:1,
+            desc:"Combiné à d'autres paramètres moteur, utilisé pour estimer le pourcentage d'utilisation thermique de la machine."},
+        {paramKey:"Mtr08", groupeQuick:"Mtr", adresse:"05.24", nom:"Inductance d'axe d / Ind. fuite", type:"num",
+            min:0.0, max:9000.0, pas:0.1, valeur:0.000, unite:"mH", condition:"Si Ctr.02 = PM ou PMaSR : ctrl. de flux orienté",
+            desc:"Moteur asynchrone : inductance de fuite globale. Moteur synchrone (PM/PMaSR) : inductance statorique cyclique, mesurable par autocalibrage (Ctr.14)."},
+        {paramKey:"Mtr09", groupeQuick:"Mtr", adresse:"05.33", nom:"f.e.m. moteur à 1000 min⁻¹ (Ke)", type:"num",
+            min:0, max:32000, pas:1, valeur:98, unite:"V", condition:"Si Ctr.02 = PM ou PMaSR : ctrl. de flux orienté",
+            desc:"Utilisée pour les moteurs synchrones. À renseigner depuis la plaque signalétique ou par autocalibrage."},
+        {paramKey:"Mtr10", groupeQuick:"Mtr", adresse:"03.38", nom:"Type de codeur", type:"enum",
+            options:["Incrémental","Réservé","U, V, W seul","Incrémental UVW","Capteur à effet Hall","Soft. 1 / Orientation pour la FEM","Soft. 2 / Orientation pour la FEM","Soft. 3 / Modèle adaptatif","Soft. 4 / Orientation par flux stator","Soft. 5 / Réservé","Résolveur","Résolveur + détection perte de signal"], indexOpt:6,
+            condition:"Si option MDX-ENCODER détectée (non actif si Ctr.02 = Asynchrone : ctrl. vectoriel en tension)",
+            desc:"Définit le type de codeur ou de méthode de retour vitesse sans capteur utilisé."},
+        {paramKey:"Mtr11", groupeQuick:"Mtr", adresse:"03.34", nom:"Nombre de points par tour codeur", type:"num",
+            min:0, max:32000, pas:1, valeur:1024, unite:"ppt",
+            desc:"Résolution du codeur incrémental raccordé (points par tour)."},
+        {paramKey:"Mtr12", groupeQuick:"Mtr", adresse:"03.36", nom:"Tension d'alimentation du codeur", type:"enum",
+            options:["5V","15V"], indexOpt:0,
+            desc:"Tension d'alimentation fournie au codeur raccordé."},
+        {paramKey:"Mtr13", groupeQuick:"Mtr", adresse:"03.25", nom:"Déphasage codeur", type:"num",
+            min:0.0, max:359.9, pas:0.1, valeur:0.0, unite:"°",
+            desc:"Décalage angulaire du codeur par rapport au flux moteur, déterminé lors de la mise en service."},
+        {paramKey:"Mtr14", groupeQuick:"Mtr", adresse:"05.76", nom:"Courant de dimensionnement de base (DBC)", type:"num",
+            min:-10.0, max:10.0, pas:0.01, valeur:0.01, unite:"A", condition:"Si Ctr.02 = PMaSR : ctrl. de flux orienté (LSHRM)",
+            desc:"Niveau de courant auquel sont caractérisées les valeurs d'inductance saturée d'axe q (Mtr.16) et d'angle de calage optimal (Mtr.17).",
+            note:"Plage réelle = ± 2,22 x 11.32 (courant nominal variateur) ; bornes numériques adaptées ici pour la simulation."},
+        {paramKey:"Mtr15", groupeQuick:"Mtr", adresse:"05.72", nom:"Lq à faible charge", type:"num",
+            min:0.0, max:9000.0, pas:0.1, valeur:0.000, unite:"mH", condition:"Si Ctr.02 = PMaSR : ctrl. de flux orienté (LSHRM)",
+            desc:"Valeur de l'inductance d'axe q lorsque le courant moteur est égal à 10% du courant de dimensionnement de base (Mtr.14)."},
+        {paramKey:"Mtr16", groupeQuick:"Mtr", adresse:"05.78", nom:"Inductance d'axe q @ DBC", type:"num",
+            min:0.0, max:9000.0, pas:0.1, valeur:0.000, unite:"mH", condition:"Si Ctr.02 = PMaSR : ctrl. de flux orienté (LSHRM)",
+            desc:"Valeur théorique de l'inductance d'axe q au courant de dimensionnement de base Mtr.14 et à l'angle de calage Mtr.17."},
+        {paramKey:"Mtr17", groupeQuick:"Mtr", adresse:"05.87", nom:"Angle de calage @ DBC", type:"num",
+            min:0, max:90, pas:1, valeur:58, unite:"°", condition:"Si Ctr.02 = PMaSR : ctrl. de flux orienté (LSHRM)",
+            desc:"Angle entre la direction du courant moteur et la tension à vide, fournissant le couple maximum au courant Mtr.14."},
+        {paramKey:"Mtr18", groupeQuick:"Mtr", adresse:"05.86", nom:"Angle de calage à charge partielle", type:"num",
+            min:0, max:90, pas:1, valeur:48, unite:"°", condition:"Si Ctr.02 = PMaSR : ctrl. de flux orienté (LSHRM)",
+            desc:"Angle de calage théorique fournissant le couple maximum lorsque le courant est égal à la moitié de Mtr.14."},
+
+        // --- MENU Spd : VITESSES ET RAMPES (p.19, 30-31) ---
+        {paramKey:"Spd01", groupeQuick:"Spd", adresse:"01.06", nom:"Limite maximum", type:"num",
+            min:0.0, max:60000.0, pas:10.0, valeur:1500.00, unite:"min⁻¹",
+            desc:"Vitesse maximum autorisée dans les deux sens de rotation. Vérifier que le moteur et la machine entraînée peuvent la supporter."},
+        {paramKey:"Spd02", groupeQuick:"Spd", adresse:"01.07", nom:"Limite minimum", type:"num",
+            min:0.0, max:1500.0, pas:10.0, valeur:0.00, unite:"min⁻¹",
+            desc:"En mode unipolaire, définit la vitesse minimum (inactif en mode bipolaire, c-à-d si Ctr.07 = Oui)."},
+        {paramKey:"Spd03", groupeQuick:"Spd", adresse:"01.14", nom:"Sélection de la référence", type:"enum",
+            options:["Par bornier","Entrée analogique 1","Entrée analogique 2","Référence préréglée","Console"], indexOpt:0,
+            desc:"Origine de la référence vitesse : sélection sur entrée analogique par DI3, référence préréglée par DI2, ou console de paramétrage."},
+        {paramKey:"Spd04", groupeQuick:"Spd", adresse:"01.21", nom:"RP1 : Référence préréglée", type:"num",
+            min:0.0, max:1500.0, pas:10.0, valeur:0.00, unite:"min⁻¹",
+            desc:"Définit la référence préréglée RP1, sélectionnable par l'entrée logique DI2."},
+        {paramKey:"Spd05", groupeQuick:"Spd", adresse:"01.22", nom:"RP2 : Référence préréglée", type:"num",
+            min:0.0, max:1500.0, pas:10.0, valeur:0.00, unite:"min⁻¹",
+            desc:"Définit la référence préréglée RP2, sélectionnable par l'entrée logique DI2."},
+        {paramKey:"Spd06", groupeQuick:"Spd", adresse:"02.11", nom:"Accélération 1", type:"num",
+            min:0.1, max:3200.0, pas:1.0, valeur:20.0, unite:"s",
+            desc:"Temps pour accélérer de 0 à 1000 min⁻¹ : Spd.06 = t(s) x 1000 / (N2-N1)."},
+        {paramKey:"Spd07", groupeQuick:"Spd", adresse:"02.21", nom:"Décélération 1", type:"num",
+            min:0.1, max:3200.0, pas:1.0, valeur:20.0, unite:"s",
+            desc:"Temps pour décélérer de 1000 min⁻¹ à 0 : Spd.07 = t(s) x 1000 / (N2-N1)."},
+        {paramKey:"Spd08", groupeQuick:"Spd", adresse:"02.04", nom:"Mode de décélération", type:"enum",
+            options:["Rampe fixe","Rampe auto.","Rampe auto. +","Rampe fixe +"], indexOpt:1,
+            desc:"Rampe fixe imposée, ou rampe automatique rallongée pour éviter la mise en sécurité surtension bus DC en l'absence de résistance de freinage."},
+        {paramKey:"Spd09", groupeQuick:"Spd", adresse:"03.10", nom:"Gain proportionnel vitesse Kp1", type:"num",
+            min:0, max:32000, pas:10, valeur:500, condition:"Si Ctr.02 = PM ou PMaSR : ctrl. de flux orienté",
+            desc:"Règle l'amplitude du dépassement de consigne suite à une accélération ou un impact de charge."},
+        {paramKey:"Spd10", groupeQuick:"Spd", adresse:"03.11", nom:"Gain intégral vitesse Ki1", type:"num",
+            min:0, max:32000, pas:10, valeur:100, condition:"Si Ctr.02 = PM ou PMaSR : ctrl. de flux orienté",
+            desc:"Règle la stabilité de la vitesse moteur sur un impact de charge."},
+
+        // --- MENU I/O : INTERFACE CLIENT (p.19-20, 31-32) ---
+        {paramKey:"IO01", groupeQuick:"IO", adresse:"07.11", nom:"Type de signal sur AI2", type:"enum",
+            options:OPT_AI_DETECT6, indexOpt:4,
+            desc:"Définit le type de signal raccordé sur l'entrée analogique différentielle AI2 (courant ou tension, avec ou sans détection de rupture)."},
+        {paramKey:"IO02", groupeQuick:"IO", adresse:"07.15", nom:"Type de signal sur AI3", type:"enum",
+            options:OPT_AI3_FULL, indexOpt:6,
+            desc:"Définit le type de signal raccordé sur l'entrée analogique différentielle AI3."},
+        {paramKey:"IO03", groupeQuick:"IO", adresse:"07.21", nom:"Type de signal sur AO1", type:"enum",
+            options:["+/-10 V","0-20 mA","4-20 mA"], indexOpt:2,
+            desc:"Définit le type de signal fourni sur la sortie analogique AO1."},
+        {paramKey:"IO04", groupeQuick:"IO", adresse:"07.19", nom:"Source sortie analogique AO1", type:"enum",
+            options:["Aucune","Vitesse moteur réelle","Courant moteur total","Puissance moteur","Courant actif du moteur"], indexOpt:2,
+            desc:"Sélectionne la grandeur recopiée sur la sortie analogique AO1."},
+        {paramKey:"IO05", groupeQuick:"IO", adresse:"07.20", nom:"Échelle sortie analogique AO1", type:"num",
+            min:0.0, max:60.0, pas:0.1, valeur:1.000,
+            desc:"Met à l'échelle la sortie analogique AO1 (1,000 = valeur maximum de la sortie correspond à la valeur maximum du paramètre affecté)."},
+        {paramKey:"IO06", groupeQuick:"IO", adresse:"08.21", nom:"Destination entrée DI1", type:"enum",
+            options:OPT_DI_DEST, indexOpt:0,
+            desc:"Sélectionne la fonction affectée à l'entrée logique DI1."},
+        {paramKey:"IO07", groupeQuick:"IO", adresse:"08.22", nom:"Destination entrée DI2", type:"enum",
+            options:OPT_DI_DEST, indexOpt:2,
+            desc:"Sélectionne la fonction affectée à l'entrée logique DI2 (réglage usine : sélection de la référence préréglée, bit 0)."},
+        {paramKey:"IO08", groupeQuick:"IO", adresse:"08.23", nom:"Destination entrée DI3", type:"enum",
+            options:OPT_DI_DEST, indexOpt:1,
+            desc:"Sélectionne la fonction affectée à l'entrée logique DI3 (réglage usine : sélection de la référence par bornier, bit 0 → AI1/AI2)."},
+        {paramKey:"IO09", groupeQuick:"IO", adresse:"08.24", nom:"Destination entrée DI4", type:"enum",
+            options:OPT_DI_DEST, indexOpt:3,
+            desc:"Sélectionne la fonction affectée à l'entrée logique DI4 (réglage usine : Marche avant)."},
+        {paramKey:"IO10", groupeQuick:"IO", adresse:"08.25", nom:"Destination entrée DI5", type:"enum",
+            options:OPT_DI_DEST, indexOpt:5,
+            desc:"Sélectionne la fonction affectée à l'entrée logique DI5 (réglage usine : Marche arrière)."},
+        {paramKey:"IO11", groupeQuick:"IO", adresse:"08.26", nom:"Source sortie logique DO1", type:"enum",
+            options:OPT_DO_SRC, indexOpt:1,
+            desc:"Sélectionne la source affectée à la sortie logique DO1."},
+        {paramKey:"IO12", groupeQuick:"IO", adresse:"08.28", nom:"Source sortie relais 2", type:"enum",
+            options:OPT_DO_SRC, indexOpt:5,
+            desc:"Sélectionne la source affectée au relais de sortie 2 (RL2)."},
+
+        // --- MENU Apl : RÉGLAGES COMPLÉMENTAIRES 1, si Ctr.01 = Application centrifuge (p.20-21, 32-34) ---
+        {paramKey:"Apl01c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"09.21", nom:"Mode RAZ référence +vite,-vite", type:"enum",
+            options:["RAZ / Actif","Précédente / Actif","RAZ / Inactif","Précédente / Inactif","Vmin / Actif","Vmin / Inactif"], indexOpt:2,
+            desc:"Définit le comportement de la référence +vite,-vite à la mise sous tension et l'activation des entrées +vite/-vite/RAZ."},
+        {paramKey:"Apl02c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"09.23", nom:"Rampe référence +vite,-vite", type:"num",
+            min:0, max:250, pas:1, valeur:20, unite:"s",
+            desc:"Temps nécessaire pour que la référence de la commande +vite,-vite évolue de 0 à 100,0 %."},
+        {paramKey:"Apl03c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"09.24", nom:"Échelle référence +vite,-vite", type:"num",
+            min:0.0, max:2.5, pas:0.01, valeur:1.00,
+            desc:"Adapte la valeur maximum de la référence +vite,-vite à la valeur maximum requise par l'application (destination Apl.04)."},
+        {paramKey:"Apl04c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"09.25", nom:"Destination référence +vite,-vite", type:"enum",
+            options:OPT_PID_DEST, indexOpt:0,
+            desc:"Définit le paramètre numérique que la référence de la commande +vite,-vite va contrôler (ex : une référence préréglée)."},
+        {paramKey:"Apl05c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"12.74", nom:"Seuil du comparateur 4 (sous-puissance en kW)", type:"num",
+            min:0.0, max:60000.0, pas:1.0, valeur:0.00, unite:"kW",
+            desc:"Règle le seuil de basculement du comparateur 4, affecté par défaut à la puissance moteur, pour détecter une sous-puissance."},
+        {paramKey:"Apl06c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"12.77", nom:"Destination de la sortie du comparateur 4", type:"enum",
+            options:OPT_COMP_DEST, indexOpt:0,
+            desc:"Définit le paramètre interne affecté par la sortie du comparateur 4 (ex : mise en sécurité utilisateur)."},
+        {paramKey:"Apl07c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"12.78", nom:"Masquage du comparateur 4", type:"num",
+            min:0.0, max:255.0, pas:0.5, valeur:30.0, unite:"s",
+            desc:"Temporise la détection du comparateur 4 par rapport au déverrouillage du variateur, pour éviter une détection intempestive au démarrage."},
+        {paramKey:"Apl08c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"12.84", nom:"Seuil du comparateur 5 (sous-vitesse en min⁻¹)", type:"num",
+            min:0.0, max:60000.0, pas:1.0, valeur:200.00, unite:"min⁻¹",
+            desc:"Règle le seuil de basculement du comparateur 5, affecté par défaut à la vitesse moteur, pour détecter une sous-vitesse."},
+        {paramKey:"Apl09c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"12.87", nom:"Destination de la sortie du comparateur 5", type:"enum",
+            options:OPT_COMP_DEST, indexOpt:0,
+            desc:"Définit le paramètre interne affecté par la sortie du comparateur 5."},
+        {paramKey:"Apl10c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"12.88", nom:"Masquage du comparateur 5", type:"num",
+            min:0.0, max:255.0, pas:0.5, valeur:30.0, unite:"s",
+            desc:"Temporise la détection du comparateur 5 par rapport au déverrouillage du variateur."},
+        {paramKey:"Apl11c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.03", nom:"Source référence PID", type:"enum",
+            options:OPT_PID_SRC, indexOpt:0,
+            desc:"Définit la variable qui sert de référence au régulateur PID (entrée analogique ou variable tampon)."},
+        {paramKey:"Apl12c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.04", nom:"Source retour PID", type:"enum",
+            options:OPT_PID_SRC, indexOpt:0,
+            desc:"Définit la variable qui sert de retour (mesure) au régulateur PID."},
+        {paramKey:"Apl13c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.08", nom:"Validation PID", type:"enum",
+            options:OPT_DEVALIDE_VALIDE, indexOpt:0,
+            desc:"Active ou désactive le régulateur PID interne."},
+        {paramKey:"Apl14c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.16", nom:"Destination sortie PID", type:"enum",
+            options:OPT_PID_DEST, indexOpt:0,
+            desc:"Définit le paramètre auquel la sortie du PID est adressée (généralement une référence préréglée)."},
+        {paramKey:"Apl15c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.10", nom:"Gain proportionnel PID", type:"num",
+            min:0.0, max:32.0, pas:0.1, valeur:1.000,
+            desc:"Avec une erreur PID de 100%, la partie proportionnelle de la sortie PID est égale à 100% lorsque ce gain = 32 000."},
+        {paramKey:"Apl16c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.11", nom:"Gain intégral PID", type:"num",
+            min:0.0, max:32.0, pas:0.1, valeur:0.500,
+            desc:"Avec une erreur PID de 100% et un gain de 1 000, la partie intégrale de la sortie PID varie de 100% en 1 s."},
+        {paramKey:"Apl17c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.61", nom:"Coefficient unité utilisateur", type:"num",
+            min:-200.0, max:200.0, pas:1.0, valeur:1.00,
+            desc:"Coefficient multiplicateur pour visualiser la référence et le retour PID en grandeur utilisateur dans le Mode lecture."},
+        {paramKey:"Apl18c", groupeQuick:"Apl", aplBloc:"centrifuge", adresse:"14.60", nom:"Unité utilisateur", type:"enum",
+            options:["%","bar","mbar","Pa","PSI","°C","°F","m³/s","m³/min","m³/h","l/min"], indexOpt:0,
+            desc:"Unité qui s'affiche pour la référence et le retour PID dans les pages du Mode lecture de l'interface de paramétrage."},
+
+        // --- MENU Apl : RÉGLAGES COMPLÉMENTAIRES 2, si Ctr.01 = Application avec moteur frein (p.21, 34) ---
+        {paramKey:"Apl01f", groupeQuick:"Apl", aplBloc:"frein", adresse:"12.41", nom:"Validation commande de frein", type:"enum",
+            options:OPT_DEVALIDEE_VALIDEE, indexOpt:0,
+            desc:"Active ou désactive la fonction de commande de frein mécanique."},
+        {paramKey:"Apl02f", groupeQuick:"Apl", aplBloc:"frein", adresse:"12.42", nom:"Seuil courant ouverture frein", type:"num",
+            min:0, max:200, pas:1, valeur:30, unite:"%",
+            desc:"Règle le seuil de courant auquel le frein sera commandé (ouvert), pour assurer un couple suffisant au moment de l'ouverture."},
+        {paramKey:"Apl03f", groupeQuick:"Apl", aplBloc:"frein", adresse:"12.44", nom:"Seuil de vitesse d'ouverture du frein", type:"num",
+            min:0.0, max:100.0, pas:0.5, valeur:30.00, unite:"min⁻¹",
+            desc:"Règle le seuil de vitesse auquel le frein sera commandé, pour fournir un couple suffisant entraînant la charge dans la bonne direction."},
+        {paramKey:"Apl04f", groupeQuick:"Apl", aplBloc:"frein", adresse:"12.45", nom:"Seuil de vitesse de fermeture du frein", type:"num",
+            min:0.0, max:100.0, pas:0.5, valeur:5.00, unite:"min⁻¹",
+            desc:"Règle le seuil de vitesse auquel la commande de frein sera désactivée, pour éviter le dévirage de charge avant la vitesse nulle."},
+        {paramKey:"Apl05f", groupeQuick:"Apl", aplBloc:"frein", adresse:"12.46", nom:"Temporisation frein", type:"num",
+            min:0.0, max:25.0, pas:0.1, valeur:0.30, unite:"s",
+            desc:"Laisse le temps d'établir dans le moteur un courant magnétisant suffisant avant l'ouverture effective du frein."},
+        {paramKey:"Apl06f", groupeQuick:"Apl", aplBloc:"frein", adresse:"12.47", nom:"Temporisation avant blocage rampe", type:"num",
+            min:0.0, max:25.0, pas:0.1, valeur:1.00, unite:"s",
+            desc:"Laisse le temps au frein de s'ouvrir avant de débloquer la rampe de vitesse, une fois la commande de frein validée."},
+        {paramKey:"Apl07f", groupeQuick:"Apl", aplBloc:"frein", adresse:"03.05", nom:"Seuil de vitesse nulle", type:"num",
+            min:0.0, max:500.0, pas:1.0, valeur:30.00, unite:"min⁻¹",
+            desc:"Si la vitesse moteur est inférieure ou égale à ce seuil, l'alarme «Vitesse nulle» est validée (affectée par défaut à DO1, voir I/O.11)."}
+    ];
+
+    // Menu natif "Avancé" (01 à 21) déduit de l'adresse (MM.PP) de chaque paramètre.
+    defsMD2.forEach(d => { d.menuAvance = parseInt(d.adresse.split(".")[0], 10); d.valeurUsine = (d.type === "enum") ? d.options[d.indexOpt] : d.valeur; });
+
+    // ===================================================================
+    // MENU 16 : FONCTIONS D'AUTOMATISME (mode Avancé uniquement — pas de
+    // correspondance en mode Paramétrage Rapide). Extraction complète,
+    // manuel §5.17, p.140-146. Structure très régulière (blocs répétés),
+    // générée ici par blocs plutôt que recopiée ligne à ligne.
+    // Les paramètres "Sortie" (16.x1, 16.91) sont des sorties calculées par
+    // la logique du bloc dans le variateur réel ; le simulateur ne modélise
+    // pas l'exécution de ces blocs logiques (Tempo/Auto-maintien/Cycleur),
+    // ils restent donc éditables ici à titre pédagogique/documentaire
+    // uniquement (voir note de couverture).
+    // ===================================================================
+    function genererParamsMenu16() {
+        const params = [];
+        for (let i = 0; i < 4; i++) {
+            const base = i * 10, n = i + 1;
+            params.push({paramKey:"M16Tempo"+n+"Sortie", adresse:"16."+String(base+1).padStart(2,"0"), nom:"Sortie du bloc temporisation "+n, type:"enum", options:["Inactive","Active"], indexOpt:0,
+                desc:"État de la sortie du bloc temporisation "+n+" (calculé par la logique du bloc sur le variateur réel ; non exécuté par ce simulateur, éditable à titre documentaire)."});
+            params.push({paramKey:"M16Tempo"+n+"Source", adresse:"16."+String(base+2).padStart(2,"0"), nom:"Source du bloc temporisation "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse (Menu.Paramètre) du paramètre «bit» affecté à l'entrée du bloc temporisation "+n+". Si un paramètre inadéquat est adressé, l'entrée sera figée à 0."});
+            params.push({paramKey:"M16Tempo"+n+"Type", adresse:"16."+String(base+3).padStart(2,"0"), nom:"Type tempo du bloc "+n, type:"enum", options:["Travail","Repos"], indexOpt:0,
+                desc:"Travail : le passage à Active de la sortie est retardé par rapport au passage à 1 de l'entrée. Repos : le passage à Inactive est retardé par rapport au passage à 0 de l'entrée."});
+            params.push({paramKey:"M16Tempo"+n+"Unite", adresse:"16."+String(base+4).padStart(2,"0"), nom:"Unité du bloc temporisation "+n, type:"enum", options:["Seconde","Minute","Heure"], indexOpt:0,
+                desc:"Unité de temps utilisée par la valeur de temporisation du bloc "+n+"."});
+            params.push({paramKey:"M16Tempo"+n+"Valeur", adresse:"16."+String(base+5).padStart(2,"0"), nom:"Valeur de la temporisation du bloc "+n, type:"num", min:0.0, max:60.0, pas:0.1, valeur:0.0,
+                desc:"Durée de la temporisation "+n+" ; l'unité dépend du paramétrage du paramètre Unité correspondant (16."+String(base+4).padStart(2,"0")+")."});
+            params.push({paramKey:"M16Tempo"+n+"Dest", adresse:"16."+String(base+9).padStart(2,"0"), nom:"Destination du bloc temporisation "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» affecté par la sortie du bloc temporisation "+n+". Si un paramètre inadéquat est adressé, la sortie sera figée à 0."});
+        }
+        for (let i = 0; i < 4; i++) {
+            const base = 40 + i * 10, n = i + 1;
+            params.push({paramKey:"M16AutoM"+n+"Sortie", adresse:"16."+String(base+1).padStart(2,"0"), nom:"Sortie du bloc auto-maintien "+n, type:"enum", options:["Inactive","Active"], indexOpt:0,
+                desc:"État de la sortie du bloc auto-maintien "+n+" (voir note de simulation des blocs logiques ci-dessus)."});
+            params.push({paramKey:"M16AutoM"+n+"SrcON", adresse:"16."+String(base+2).padStart(2,"0"), nom:"Source ON du bloc auto-maintien "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» de validation du bloc auto-maintien "+n+". Une impulsion ou l'état 1 sur l'entrée entraîne le passage à Active de la sortie."});
+            params.push({paramKey:"M16AutoM"+n+"SrcOFF", adresse:"16."+String(base+3).padStart(2,"0"), nom:"Source OFF du bloc auto-maintien "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» de dévalidation du bloc auto-maintien "+n+". Une impulsion ou l'état 1 sur l'entrée entraîne le passage à Inactive de la sortie."});
+            params.push({paramKey:"M16AutoM"+n+"Dest", adresse:"16."+String(base+9).padStart(2,"0"), nom:"Destination du bloc auto-maintien "+n, type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+                desc:"Adresse du paramètre «bit» affecté par la sortie du bloc auto-maintien "+n+"."});
+        }
+        params.push({paramKey:"M16CyclNbEtats", adresse:"16.80", nom:"Nombre d'états cyclés", type:"num", min:0, max:8, pas:1, valeur:0,
+            desc:"0 : cycleur dévalidé. 1 à 8 : nombre d'états du cycleur (ex : si = 3, le cycleur effectue le cycle 1 → 2 → 3 → 1 ...)."});
+        for (let e = 1; e <= 8; e++) {
+            params.push({paramKey:"M16CyclTemps"+e, adresse:"16."+(80+e), nom:"Temps du cycleur sur l'état "+e, type:"num", min:0, max:9999, pas:1, valeur:0, unite:"s",
+                desc:"Détermine le temps pendant lequel le cycleur reste à l'état "+e+"."});
+        }
+        params.push({paramKey:"M16CyclSortie", adresse:"16.91", nom:"Sortie du cycleur", type:"num", min:-127, max:135, pas:1, valeur:0,
+            desc:"Indique l'état courant du cycleur (voir note de simulation des blocs logiques ci-dessus)."});
+        params.push({paramKey:"M16CyclDest", adresse:"16.92", nom:"Destination du cycleur", type:"num", min:0, max:21.51, pas:0.01, valeur:0.00,
+            desc:"Paramètre auquel l'état du cycleur est adressé. Exemple : pour cycler plusieurs vitesses, choisir 01.15 comme destination."});
+        params.push({paramKey:"M16CyclRAZ", adresse:"16.93", nom:"Remise à zéro du cycleur", type:"enum", options:["Non","Oui"], indexOpt:0,
+            desc:"Passage à Oui : le cycleur est remis à l'état 1. Peut être utilisé pour contrôler le début du cycle par entrée logique."});
+        params.push({paramKey:"M16CyclMode", adresse:"16.94", nom:"Mode du cycleur", type:"enum",
+            options:["À l'ordre de marche, Init sur état 1","Tourne en permanence, Même à l'arrêt","À l'ordre de marche, reprend état préc."], indexOpt:0,
+            desc:"Détermine le comportement du cycleur à l'ordre de marche : réinitialisation sur l'état 1, rotation permanente (même à l'arrêt), ou reprise de l'état précédent."});
+        params.push({paramKey:"M16CyclOffset", adresse:"16.95", nom:"Offset du cycleur", type:"num", min:-127, max:127, pas:1, valeur:0,
+            desc:"Permet d'ajouter un offset à la valeur issue du cycleur."});
+
+        params.forEach(p => { p.groupeQuick = null; p.aplBloc = null; p.menuAvance = 16; p.valeurUsine = (p.type === "enum") ? p.options[p.indexOpt] : p.valeur; });
+        return params;
+    }
+    defsMD2.push(...genererParamsMenu16());
+
+    // ===================================================================
+    // MENU 17 : DIAGNOSTICS (mode Avancé uniquement). Extraction complète,
+    // manuel §5.18, p.147-151. Beaucoup de suites régulières d'échantillons
+    // (7 ou 17 valeurs) — générées par boucle plutôt que recopiées.
+    // ===================================================================
+    function genererParamsMenu17() {
+        const params = [];
+        const push = (key, adr, nom, extra) => { params.push(Object.assign({paramKey:key, adresse:adr, nom:nom}, extra)); };
+
+        push("M17TestCartes", "17.01", "Test des cartes contrôle et interface", {type:"enum", options:["Non","Oui"], indexOpt:0,
+            desc:"Vérifie le bon fonctionnement des cartes de contrôle et d'interface (puissance coupée, E/S déconnectées). RAZ automatique en fin de test.",
+            note:"D'après le manuel, les paramètres 17.01 à 17.09 ne sont disponibles que sur les versions MD2S ou MD2CS."});
+        push("M17TestPuissance", "17.02", "Test de la puissance", {type:"enum", options:["Non","Oui"], indexOpt:0,
+            desc:"Vérifie le bon fonctionnement des circuits de puissance. Attention : du courant circule dans le moteur pendant ce test."});
+        push("M17AutoTestPuissance", "17.03", "Auto-test de la puissance", {type:"enum", options:["Non","Oui"], indexOpt:1,
+            desc:"Auto-test effectué à chaque mise sous tension (moins de 5 s, bus non chargé). Nécessite les entrées STO fermées et 10.75 = Non."});
+        push("M17ResultatTestCartes", "17.05", "Résultat test des cartes contrôle et interface", {type:"enum",
+            options:["En cours","Réussi","Échec carte contrôle","Échec carte interface","Aucun"], indexOpt:4,
+            desc:"Résultat du test 17.01. En cas d'échec, une mise en sécurité «Diagnostic» est déclenchée ; relever 17.08 et 17.09 avant de contacter Nidec Leroy-Somer."});
+        push("M17ResultatTestPuissance", "17.06", "Résultat test de la puissance", {type:"enum",
+            options:["En cours","Réussi","Échec bras U","Échec bras V","Échec bras W","Échec redresseur","Échec moteur","Échec bras U et V","Échec bras V et W","Échec bras U et W","Échec STO ouvertes","Aucun"], indexOpt:11,
+            desc:"Résultat du test 17.02/17.03. Le code détaillé du problème est donné par 17.08 (voir le tableau du manuel §5.18 pour la procédure associée à chaque combinaison 17.06/17.08).",
+            note:"Les valeurs natives réelles sont 0,1,2,3,4,5,6,7,8,9,10,15 (codes 11 à 14 non utilisés) ; affichées ici comme une liste continue de 12 options."});
+        push("M17CodeErreur1", "17.08", "Code d'erreur 1", {type:"num", min:0, max:65535, pas:1, valeur:0,
+            desc:"Code interne de diagnostic (test cartes contrôle/interface ou puissance). À relever avant de contacter Nidec Leroy-Somer."});
+        push("M17CodeErreur2", "17.09", "Code d'erreur 2", {type:"num", min:0, max:65535, pas:1, valeur:0,
+            desc:"Second code interne de diagnostic. À relever avant de contacter Nidec Leroy-Somer."});
+        push("M17EtatPrecedent", "17.11", "État de fonctionnement précédent l'état 17.12", {type:"num", min:0, max:37, pas:1, valeur:0,
+            desc:"État du variateur (cf. 10.98) juste avant la mise en sécurité."});
+        push("M17EtatMES", "17.12", "État de fonctionnement à la mise en sécurité", {type:"num", min:0, max:37, pas:1, valeur:0,
+            desc:"État du variateur (cf. 10.98) au moment précis de la mise en sécurité."});
+        push("M17TempsEcoule", "17.13", "Temps écoulé entre les deux états", {type:"num", min:0.0, max:6000.0, pas:0.002, valeur:0.0, unite:"s",
+            desc:"Temps écoulé entre les états 17.11 et 17.12, multiple de 2 ms. Une valeur de 6000,000 s signifie que le temps réel dépasse la capacité d'affichage."});
+        ["Deuxième","Troisième","Quatrième"].forEach((ord, i) => {
+            push("M17CodeErreurDernier" + (i + 2), "17." + (15 + i), ord + " code d'erreur du dernier défaut", {type:"num", min:0, max:999, pas:1, valeur:0,
+                desc:"En cas de mises en sécurité simultanées, code de la " + ord.toLowerCase() + " mise en sécurité (10.99 donne le code de la mise en sécurité en cours)."});
+        });
+        for (let i = 1; i <= 5; i++) {
+            push("M17CompteurMES" + i + "AJ", "17." + (16 + i * 2), "Compteur mise en sécurité -" + i + " (années, jours)", {type:"num", min:0.0, max:9364.0, pas:0.001, valeur:0.0, unite:"a,j",
+                desc:"Temps de fonctionnement (années, jours) depuis la première mise en service jusqu'à l'apparition de la mise en sécurité -" + i + "."});
+            push("M17CompteurMES" + i + "HM", "17." + (17 + i * 2), "Compteur mise en sécurité -" + i + " (heures, minutes)", {type:"num", min:0.0, max:23.59, pas:0.01, valeur:0.0, unite:"h,m",
+                desc:"Complément heures/minutes du compteur mise en sécurité -" + i + (i === 5 ? " (correspond à celle affichée dans 10.24)." : ".")});
+        }
+        push("M17RazMax", "17.29", "RAZ des maximums mesurés", {type:"enum", options:["Non","Oui"], indexOpt:0,
+            desc:"Oui : efface les valeurs mesurées des paramètres 17.30 à 17.34."});
+        push("M17TensionReseauMax", "17.30", "Tension réseau maximum", {type:"num", min:0, max:999, pas:1, valeur:0, unite:"V",
+            desc:"Maximum de la moyenne 17.37 ; remis à 0 après une RAZ (17.29) tant qu'aucun ordre de marche n'est donné."});
+        push("M17TensionReseauMin", "17.31", "Tension réseau minimum", {type:"num", min:0, max:999, pas:1, valeur:0, unite:"V",
+            desc:"Minimum de la moyenne 17.37 ; remis à 999 après une RAZ (17.29) tant qu'aucun ordre de marche n'est donné."});
+        push("M17CourantMoteurMax", "17.32", "Courant moteur maximum", {type:"num", min:0.0, max:9.24, pas:0.01, valeur:0.0, unite:"A",
+            desc:"Maximum de la moyenne 17.40.", note:"Plage réelle = 0,00 à 2,2 x 11.32 (courant nominal variateur) ; bornes adaptées à l'exemple pédagogique 11.32 = 4,20 A."});
+        push("M17TempCarteMax", "17.33", "Température carte contrôle maximum", {type:"num", min:0, max:200, pas:1, valeur:0, unite:"°C",
+            desc:"Maximum de 17.46 ; remis à 0 après une RAZ (17.29) tant qu'aucun ordre de marche n'est donné."});
+        push("M17TempModulesMax", "17.34", "Température des modules maximum", {type:"num", min:0, max:200, pas:1, valeur:0, unite:"°C",
+            desc:"Maximum instantané de 17.42, 17.43 et 17.44 ; remis à 0 après une RAZ (17.29) tant qu'aucun ordre de marche n'est donné."});
+        push("M17ConstanteTemps", "17.36", "Constante de temps", {type:"enum", options:["32 ms","64 ms","128 ms","256 ms","512 ms","1 s","2 s"], indexOpt:4,
+            desc:"Règle la constante de temps du filtre appliqué aux moyennes 17.37, 17.38, 17.39 et 17.40."});
+        push("M17MoyTensionReseau", "17.37", "Moyenne tension réseau", {type:"num", min:0, max:999, pas:1, valeur:0, unite:"V",
+            desc:"Moyenne de la tension réseau au moment de la dernière mise en sécurité, filtrée par 17.36."});
+        push("M17MoyTensionBus", "17.38", "Moyenne tension du bus", {type:"num", min:0, max:1300, pas:1, valeur:0, unite:"V",
+            desc:"Moyenne de la tension bus au moment de la dernière mise en sécurité, filtrée par 17.36."});
+        push("M17MoyVitesse", "17.39", "Moyenne vitesse", {type:"num", min:-60000, max:60000, pas:1, valeur:0, unite:"min⁻¹",
+            desc:"Moyenne de la vitesse, filtrée par 17.36, au moment de la dernière mise en sécurité."});
+        push("M17MoyCourantMoteur", "17.40", "Moyenne courant moteur", {type:"num", min:0.0, max:9.24, pas:0.01, valeur:0.0, unite:"A",
+            desc:"Moyenne du courant moteur au moment de la dernière mise en sécurité, filtrée par 17.36.",
+            note:"Plage réelle = 0 à 2,2 x 11.32 (courant nominal variateur)."});
+        ["U","V","W","redresseur","carte de contrôle"].forEach((organe, i) => {
+            push("M17MoyTemp" + organe.replace(/\s/g, ""), "17." + (42 + i), "Moyenne température " + (["U","V","W"].includes(organe) ? "bras " + organe : organe), {type:"num", min:0, max:200, pas:1, valeur:0, unite:"°C",
+                desc:"Moyenne de la température " + (organe === "carte de contrôle" ? "de la carte de contrôle" : (["U","V","W"].includes(organe) ? "du module " + organe : "du " + organe)) + " au moment de la dernière mise en sécurité, filtrée à 128 ms."});
+        });
+        for (let i = 0; i < 7; i++) {
+            push("M17Vres" + i, "17." + (48 + i), "Valeur Vres à la mise en sécurité T0" + (i === 0 ? "" : " - " + (i * 4) + " ms"), {type:"num", min:0, max:999, pas:1, valeur:0, unite:"V",
+                desc:"Échantillon (pas 4 ms) de la tension réseau avant la mise en sécurité — T0 " + (i === 0 ? "(instant de la mise en sécurité)." : ("- " + (i * 4) + " ms."))});
+        }
+        for (let i = 0; i < 7; i++) {
+            push("M17Nmot" + i, "17." + (56 + i), "Valeur Nmot à la mise en sécurité T0" + (i === 0 ? "" : " - " + (i * 4) + " ms"), {type:"num", min:-60000, max:60000, pas:1, valeur:0, unite:"min⁻¹",
+                desc:"Échantillon (pas 4 ms) de la vitesse moteur avant la mise en sécurité — T0 " + (i === 0 ? "(instant de la mise en sécurité)." : ("- " + (i * 4) + " ms."))});
+        }
+        push("M17Echantillonnage", "17.64", "Échantillonnage V bus et I moteur", {type:"num", min:1, max:4, pas:1, valeur:1,
+            desc:"Définit la base de temps (Fd, en relation avec la fréquence de découpage) de l'acquisition des échantillons 17.65 à 17.99."});
+        for (let i = 0; i < 17; i++) {
+            push("M17Vbus" + i, "17." + (65 + i), "Valeur Vbus à la mise en sécurité T0" + (i === 0 ? "" : " - " + i + " x (17.64/Fd)"), {type:"num", min:0, max:1300, pas:1, valeur:0, unite:"V",
+                desc:"Échantillon de la tension bus DC avant la mise en sécurité (Fd = fréquence de découpage). T0 " + (i === 0 ? "= instant de la mise en sécurité." : ("- " + i + " x (17.64/Fd)."))});
+        }
+        for (let i = 0; i < 17; i++) {
+            push("M17Imot" + i, "17." + (83 + i), "Valeur Imot à la mise en sécurité T0" + (i === 0 ? "" : " - " + i + " x (17.64/Fd)"), {type:"num", min:0.0, max:9.24, pas:0.01, valeur:0.0, unite:"A",
+                desc:"Échantillon du courant moteur avant la mise en sécurité (Fd = fréquence de découpage). T0 " + (i === 0 ? "= instant de la mise en sécurité." : ("- " + i + " x (17.64/Fd)."))});
+        }
+
+        params.forEach(p => { p.groupeQuick = null; p.aplBloc = null; p.menuAvance = 17; p.valeurUsine = (p.type === "enum") ? p.options[p.indexOpt] : p.valeur; });
+        return params;
+    }
+    defsMD2.push(...genererParamsMenu17());
+
+    const titresMenusAvances = {
+        1:"Références vitesse et limitations", 2:"Rampes", 3:"Option codeur, Alarmes, Seuils de vitesse",
+        4:"Boucle de courant - Régulation de couple", 5:"Contrôle moteur", 6:"Commandes logiques et compteurs",
+        7:"Entrées sorties analogiques", 8:"Entrées / sorties logiques", 9:"Fonctions logiques",
+        10:"États variateur, gestion des mises en sécurité", 11:"Configuration variateur, Liaison série",
+        12:"Comparateurs, Commande de frein, Fonctions mathématiques", 13:"Gestion des perturbations réseau",
+        14:"Contrôleur PID", 15:"Options bus de terrain", 16:"Fonctions d'automatisme", 17:"Diagnostics",
+        18:"Mode régénératif", 19:"Options Entrées/Sorties supplémentaires", 20:"Applications spécifiques",
+        21:"Paramètres deuxième moteur"
+    };
+
+    // Index de recherche rapide paramKey -> définition (source de vérité pour les valeurs courantes)
+    const paramIndex = {};
+    defsMD2.forEach(d => { paramIndex[d.paramKey] = d; });
+
+    function obtenirValeurParam(key) {
+        const d = paramIndex[key];
+        if (!d) return null;
+        return d.type === "enum" ? d.options[d.indexOpt] : d.valeur;
+    }
+
+    function fixerValeurParam(key, val) {
+        const d = paramIndex[key];
+        if (!d) return;
+        if (d.type === "enum") {
+            const idx = d.options.indexOf(val);
+            if (idx !== -1) d.indexOpt = idx;
+        } else {
+            let v = parseFloat(val);
+            if (isNaN(v)) return;
+            if (d.min !== undefined) v = Math.max(d.min, v);
+            if (d.max !== undefined) v = Math.min(d.max, v);
+            d.valeur = Math.round(v * 1000) / 1000;
+        }
+    }
+
+    // Regroupements pour la navigation "Paramétrage Rapide" (menus Ctr / Mtr / Spd / I/O fixes, Apl dynamique)
+    function paramsDuGroupeQuick(groupe) {
+        if (groupe === "Apl") {
+            const bloc = obtenirValeurParam("Ctr01");
+            if (bloc === "Application centrifuge") return defsMD2.filter(d => d.aplBloc === "centrifuge");
+            if (bloc === "Application avec moteur frein") return defsMD2.filter(d => d.aplBloc === "frein");
+            return []; // Aucune / Autre Application : menu Apl inactif (cf. manuel p.22)
+        }
+        return defsMD2.filter(d => d.groupeQuick === groupe);
+    }
+    const NOMS_GROUPES_QUICK = {Ctr:"CONTRÔLE DE BASE DU MOTO-VARIATEUR", Mtr:"PLAQUE MOTEUR", Spd:"VITESSES ET RAMPES", IO:"INTERFACE CLIENT", Apl:"RÉGLAGES COMPLÉMENTAIRES"};
+    const ORDRE_GROUPES_QUICK = ["Ctr","Mtr","Spd","IO","Apl"];
+
+    // Regroupement pour la navigation "Paramétrage Avancé" (Menu 01 à 21, par adresse native)
+    function paramsDuMenuAvance(num) {
+        return defsMD2.filter(d => d.menuAvance === num);
+    }
+</script>
+<!-- SCRIPT SIMULATEUR POWERDRIVE MD2 : NAVIGATION IHM TACTILE + CÂBLAGE -->
+<script>
+    // ===================================================================
+    // État global de simulation
+    // ===================================================================
+    let etatCablage = { alim: true, moteur: true, sto: true };
+    let di = { 1:false, 2:false, 3:false, 4:false, 5:false };
+    let tensionAI2 = 5.0;
+    let vitesseReelle = 0.0;          // min-1 (valeur absolue)
+    let sensInverseActuel = false;
+    let courantMoteurSimule = 0.0;    // A
+    let temperatureCarteSimulee = 32.0;
+    let tempsFonctionnementSec = 0;
+    const COURANT_NOMINAL_VARIATEUR = 4.20; // A (registre 11.32, valeur d'exemple pédagogique)
+
+    let miseEnSecuriteActive = null;  // {num, libelle}
+    let alarmeActive = null;          // {num, libelle}
+    let historiqueMES = [];           // {date, heure, libelle}
+
+    let consoleRefEnabled = false;    // Paramétrage console : Réglage de la référence par console
+    let consoleCmdEnabled = false;    // Paramétrage console : Ordre de marche arrêt par console
+    let consoleStopKeyEnabled = true; // Touche arrêt de la console
+    let consoleMarcheAV = false, consoleMarcheAR = false, consoleConsigne = 0.0;
+
+    let modeChallenge = false, secondesChrono = 0, timerInterval = null;
+    const MAX_HISTORIQUE_GRAPH = 150;
+    let histVitesse = new Array(MAX_HISTORIQUE_GRAPH).fill(0);
+    let histCourant = new Array(MAX_HISTORIQUE_GRAPH).fill(0);
+    let audioCtx = null, oscIGBT = null, gainMaster = null, audioAutorise = false;
+
+    let sauvegardeFichiers = [null, null, null]; // {date, heure, data}
+    let sauvegardeSlotSelectionne = 0;
+
+    // ===================================================================
+    // Navigation IHM tactile (écran, pile de retour, sélections en cours)
+    // ===================================================================
+    let ecranActuel = "accueil";
+    let pileEcrans = [];
+    let indexPageLecture = 0;
+    let indexGroupeQuick = 0;
+    let indexParamQuick = 0;
+    let editionQuickActive = false;
+    let numMenuAvance = 1;
+    let indexParamAvance = 0;
+    let editionAvanceActive = false;
+    let codeSaisi = "";
+    let ecranApresCode = null;
+
+    function irVers(ecran) {
+        pileEcrans.push(ecranActuel);
+        ecranActuel = ecran;
+        editionQuickActive = false; editionAvanceActive = false;
+        renderEcran();
+    }
+    function retourEcran() {
+        editionQuickActive = false; editionAvanceActive = false;
+        if (pileEcrans.length > 0) ecranActuel = pileEcrans.pop();
+        else ecranActuel = "accueil";
+        renderEcran();
+    }
+    function demanderCode(cible) {
+        ecranApresCode = cible;
+        codeSaisi = "";
+        irVers("codeAcces");
+    }
+    function saisirChiffreCode(c) {
+        if (codeSaisi.length < 3) codeSaisi += c;
+        renderEcran();
+    }
+    function effacerCode() { codeSaisi = ""; ecranApresCode = null; retourEcran(); }
+    function validerCode() {
+        if (codeSaisi === "149") {
+            const cible = ecranApresCode;
+            pileEcrans.pop(); // retire "codeAcces" de la pile logique
+            ecranActuel = cible;
+            renderEcran();
+            logConsole("[IHM] Code d'accès validé.");
+        } else {
+            logConsole("[IHM] Code d'accès incorrect (" + codeSaisi + ").");
+            codeSaisi = "";
+            renderEcran();
+        }
+    }
+
+    function actionArretReset() {
+        consoleMarcheAV = false; consoleMarcheAR = false;
+        di[4] = false; di[5] = false;
+        majSwitchesUI();
+        if (miseEnSecuriteActive) {
+            if (causeMiseEnSecuriteResolue()) {
+                logConsole("[MES] Mise en sécurité n°" + miseEnSecuriteActive.num + " effacée (Reset).");
+                miseEnSecuriteActive = null;
+            } else {
+                logConsole("[MES] Reset refusé : la cause de la mise en sécurité n°" + miseEnSecuriteActive.num + " est toujours présente.");
+            }
+        } else {
+            logConsole("[CMD] Ordre d'arrêt donné (touche Arrêt/Reset).");
+        }
+        renderEcran();
+    }
+
+    // ===================================================================
+    // Rendu de l'écran tactile (dispatch par écran)
+    // ===================================================================
+    function renderEcran() {
+        const ts = document.getElementById("touchscreen");
+        if (!ts) return;
+        let bandeau = "";
+        try {
+            if (miseEnSecuriteActive) {
+                bandeau = '<div class="ts-trip-banner">⚠ MISE EN SÉCURITÉ EN COURS : ' + miseEnSecuriteActive.libelle + '</div>';
+            } else if (alarmeActive) {
+                bandeau = '<div class="ts-alarm-banner">⚠ ALARME : ' + alarmeActive.libelle + '</div>';
+            }
+        } catch (ignored) {}
+        const topbar = '<div class="ts-topbar"><span class="marque">Powerdrive</span><span>' + formatDateHeure() + '</span></div>';
+
+        let corps = "";
+        try {
+            switch (ecranActuel) {
+                case "accueil": corps = ecranAccueil(); break;
+                case "menuPrincipal": corps = ecranMenuPrincipal(); break;
+                case "informations": corps = ecranInformations(); break;
+                case "modeLecture": corps = ecranModeLecture(); break;
+                case "parametrage": corps = ecranParametrage(); break;
+                case "paramRapide": corps = ecranParamRapide(); break;
+                case "paramAvance": corps = ecranParamAvance(); break;
+                case "sauvegarde": corps = ecranSauvegarde(); break;
+                case "paramConsole": corps = ecranParamConsole(); break;
+                case "ihmDateHeure": corps = ecranIhmDateHeure(); break;
+                case "commandeConsole": corps = ecranCommandeConsole(); break;
+                case "historique": corps = ecranHistorique(); break;
+                case "codeAcces": corps = ecranCodeAcces(); break;
+                default: corps = ecranAccueil();
+            }
+        } catch (e) {
+            console.error("[renderEcran] erreur sur l'écran « " + ecranActuel + " » :", e);
+            corps = '<div class="ts-content"><div style="color:#e53170;font-size:11px;">Erreur d\'affichage sur l\'écran « ' + ecranActuel + ' » : ' + e.message + '<br><br>Utilisez le bouton retour ci-dessus, ou rechargez la page.</div></div>';
+        }
+        ts.innerHTML = bandeau + topbar + corps;
+    }
+
+    function entete(titre) {
+        return '<div class="ts-header"><button class="ts-back" onclick="retourEcran()" title="Retour">↩</button><span>' + titre + '</span></div>';
+    }
+    function piedStop() {
+        return '<div class="ts-footer"><button class="ts-stop" onclick="actionArretReset()" title="Arrêt/Reset">⏻</button></div>';
+    }
+
+    // --- Écran d'accueil ---
+    function ecranAccueil() {
+        return '<div class="ts-content">' +
+            '<div style="text-align:center;font-weight:bold;font-size:14px;color:#7f5af0;">Nidec Leroy-Somer</div>' +
+            '<div class="ts-info-row"><span>Calibre du variateur</span><span>MD2 4.2A-T</span></div>' +
+            '<div class="ts-info-row"><span>Courant nominal variateur (11.32)</span><span>' + COURANT_NOMINAL_VARIATEUR.toFixed(2) + ' A</span></div>' +
+            '<div class="ts-info-row"><span>Option bus de terrain détectée</span><span>aucune</span></div>' +
+            '<div class="ts-info-row"><span>Version du logiciel variateur</span><span>5.80</span></div>' +
+            '<div class="ts-info-row"><span>Version logiciel afficheur</span><span>1.41</span></div>' +
+            '<div class="ts-info-row"><span>Temps de fonctionnement</span><span>' + formatTempsFonctionnement() + '</span></div>' +
+            '</div>' +
+            '<div class="ts-footer"><button class="ts-menu-item" style="flex:1;justify-content:center;" onclick="irVers(\'menuPrincipal\')">🏠 <b>B</b> : Menu principal</button></div>';
+    }
+
+    // --- Menu principal (5 boutons tactiles) ---
+    function ecranMenuPrincipal() {
+        return '<div class="ts-content">' +
+            '<div class="ts-menu-item" onclick="irVers(\'informations\')"><span class="ic">ℹ️</span> Informations</div>' +
+            '<div class="ts-menu-item" onclick="irVers(\'modeLecture\')"><span class="ic">👁️</span> Mode lecture</div>' +
+            '<div class="ts-menu-item" onclick="irVers(\'parametrage\')"><span class="ic">🛠️</span> Paramétrage</div>' +
+            '<div class="ts-menu-item" onclick="irVers(\'commandeConsole\')"><span class="ic">🕹️</span> Commande par console</div>' +
+            '<div class="ts-menu-item" onclick="irVers(\'historique\')"><span class="ic">🕓</span> Historique des mises en sécurité</div>' +
+            '</div>' + piedStop();
+    }
+
+    // --- Informations ---
+    function ecranInformations() {
+        return entete("Informations") + '<div class="ts-content">' +
+            '<div class="ts-info-row"><span>Calibre du variateur</span><span>MD2 4.2A-T</span></div>' +
+            '<div class="ts-info-row"><span>Courant nominal variateur (11.32)</span><span>' + COURANT_NOMINAL_VARIATEUR.toFixed(2) + ' A</span></div>' +
+            '<div class="ts-info-row"><span>Option bus de terrain détectée</span><span>aucune</span></div>' +
+            '<div class="ts-info-row"><span>Version du logiciel variateur</span><span>5.80</span></div>' +
+            '<div class="ts-info-row"><span>Version logiciel afficheur</span><span>1.41</span></div>' +
+            '<div class="ts-info-row"><span>Temps de fonctionnement</span><span>' + formatTempsFonctionnement() + '</span></div>' +
+            '</div>' + piedStop();
+    }
+
+    // --- Mode lecture (12 pages, cf. manuel §2.2.2) ---
+    const pagesLecture = [
+        [{lbl:"État de fonctionnement", adr:"10.98"}, {lbl:"Vitesse moteur calculée", adr:"05.04", unite:"min⁻¹"}],
+        [{lbl:"Courant moteur total", adr:"04.01", unite:"A"}, {lbl:"Fréquence moteur", adr:"05.01", unite:"Hz"}],
+        [{lbl:"Courant actif du moteur", adr:"04.02", unite:"A"}, {lbl:"Tension moteur", adr:"05.02", unite:"V"}],
+        [{lbl:"Puissance moteur", adr:"05.03", unite:"kW"}, {lbl:"Tension bus DC / Tension réseau", adr:"05.05 / 07.81", unite:"V"}],
+        [{lbl:"Entrée analogique AI1", adr:"07.01", unite:"V"}, {lbl:"Entrée analogique AI2", adr:"07.02", unite:"V"}],
+        [{lbl:"Entrée analogique AI3", adr:"07.03", unite:"V"}, {lbl:"Sortie analogique AO1", adr:"07.68", unite:"mA"}],
+        [{lbl:"Entrées logiques DI1 à DI5", adr:"08.01 à 08.05"}, {lbl:"DO1 / Relais 2 / Entrées STO", adr:"08.07 à 08.09"}],
+        [{lbl:"Référence sélectionnée", adr:"01.49", unite:"min⁻¹"}, {lbl:"Référence préréglée sélectionnée", adr:"01.50", unite:"min⁻¹"}],
+        [{lbl:"Référence avant limitation", adr:"01.01", unite:"min⁻¹"}, {lbl:"Référence avant rampes", adr:"01.03", unite:"min⁻¹"}],
+        [{lbl:"Référence après rampes", adr:"02.01", unite:"min⁻¹"}, {lbl:"Température carte de contrôle", adr:"07.55", unite:"°C"}],
+        [{lbl:"Compteur horaire", adr:"06.22 / 06.23"}, {lbl:"Référence PID en unité utilisateur", adr:"14.62"}],
+        [{lbl:"Retour PID en unité utilisateur", adr:"14.63"}]
+    ];
+
+    function ecranModeLecture() {
+        const page = pagesLecture[indexPageLecture];
+        let html = entete("Mode Lecture — Page " + String(indexPageLecture + 1).padStart(2, "0") + "/12") + '<div class="ts-content">';
+        page.forEach(item => {
+            html += '<div class="ts-mesure-box"><div class="ts-mesure-label">' + item.adr + ' : ' + item.lbl + '</div>' +
+                '<div class="ts-mesure-val">' + valeurLectureSimulee(item.adr) + '</div>' +
+                '<div class="ts-mesure-unit">' + (item.unite || "") + '</div></div>';
+        });
+        html += '</div><div class="ts-nav-row" style="padding:6px 8px;">' +
+            '<button class="ts-btn-nav" ' + (indexPageLecture === 0 ? "disabled" : "") + ' onclick="changerPageLecture(-1)">◀ Précédent</button>' +
+            '<button class="ts-btn-nav" ' + (indexPageLecture === 11 ? "disabled" : "") + ' onclick="changerPageLecture(1)">Suivant ▶</button></div>';
+        return html + piedStop();
+    }
+    function changerPageLecture(delta) {
+        indexPageLecture = Math.max(0, Math.min(11, indexPageLecture + delta));
+        renderEcran();
+    }
+
+    // --- Paramétrage (sous-menu) ---
+    function ecranParametrage() {
+        return entete("Paramétrage") + '<div class="ts-content">' +
+            '<div class="ts-menu-item" onclick="irVers(\'paramRapide\')"><span class="ic">⚡</span> Rapide</div>' +
+            '<div class="ts-menu-item" onclick="demanderCode(\'paramAvance\')"><span class="ic">🧰</span> Avancé</div>' +
+            '<div class="ts-menu-item" onclick="demanderCode(\'sauvegarde\')"><span class="ic">💾</span> Sauvegarde</div>' +
+            '<div class="ts-menu-item" onclick="demanderCode(\'paramConsole\')"><span class="ic">🕹️</span> Paramétrage console</div>' +
+            '<div class="ts-menu-item" onclick="demanderCode(\'ihmDateHeure\')"><span class="ic">🕒</span> IHM - Date/Heure</div>' +
+            '</div>' + piedStop();
+    }
+
+    // --- Code d'accès (clavier numérique, code usine 149) ---
+    function ecranCodeAcces() {
+        let html = entete("Code d'accès") + '<div class="ts-content">' +
+            '<div class="ts-code-display">' + codeSaisi.padEnd(3, "•") + '</div>' +
+            '<div class="ts-numpad">';
+        ["7","8","9","4","5","6","1","2","3"].forEach(c => { html += '<button onclick="saisirChiffreCode(\'' + c + '\')">' + c + '</button>'; });
+        html += '<button onclick="saisirChiffreCode(\'0\')">0</button>' +
+            '<button style="background:#2cb67d;" onclick="validerCode()">✓</button>' +
+            '<button style="background:#e53170;color:#fff;" onclick="effacerCode()">✗</button>' +
+            '</div><div style="font-size:10px;color:#666;text-align:center;">Code usine : 149 (11.61)</div></div>';
+        return html;
+    }
+
+    // --- Paramétrage Rapide (menus Ctr/Mtr/Spd/I-O/Apl) ---
+    function ecranParamRapide() {
+        const groupe = ORDRE_GROUPES_QUICK[indexGroupeQuick];
+        const liste = paramsDuGroupeQuick(groupe);
+        if (indexParamQuick >= liste.length) indexParamQuick = 0;
+        const d = liste[indexParamQuick];
+        let html = entete("Paramétrage rapide") + '<div class="ts-content"><div class="ts-param-screen">';
+        html += '<div class="ts-param-titre-menu">MENU ' + groupe + ' : ' + NOMS_GROUPES_QUICK[groupe] + '</div>';
+        if (!d) {
+            html += '<div class="ts-param-nom">Menu inactif</div>' +
+                '<div class="ts-param-valbox readonly"><div style="font-size:11px;">Ce menu «Réglages complémentaires» est inactif : Ctr.01 doit valoir «Application centrifuge» ou «Application avec moteur frein» pour l\'activer (cf. manuel §4.2, note «Autre application»).</div></div>';
+        } else {
+            html += '<div class="ts-param-nom">' + d.nom + '</div>' +
+                '<div class="ts-param-adresse">' + d.paramKey + ' — adresse native (Avancé) : ' + d.adresse + (d.condition ? ' — ' + d.condition : '') + '</div>' +
+                '<div class="ts-param-valbox ' + (editionQuickActive ? "editable" : "readonly") + '">' + contenuValeurEditable(d, editionQuickActive, "Quick") + '</div>';
+        }
+        html += '</div></div>';
+        html += '<div class="ts-menu-selector"><button class="ts-btn-nav" onclick="changerGroupeQuick(-1)">◀ Menu</button><span>' + groupe + '</span><button class="ts-btn-nav" onclick="changerGroupeQuick(1)">Menu ▶</button></div>';
+        html += '<div class="ts-menu-selector"><button class="ts-btn-nav" onclick="changerParamQuick(-1)">▼ Para</button><span>' + (d ? d.paramKey : "--") + '</span><button class="ts-btn-nav" onclick="changerParamQuick(1)">▲ Para</button>' +
+            '<button class="ts-btn-nav" style="background:#7f5af0;color:#fff;" ' + (!d ? "disabled" : "") + ' onclick="toggleEditionQuick()">' + (editionQuickActive ? "✓ Valider" : "✎ Modifier") + '</button></div>';
+        return html + piedStop();
+    }
+    function changerGroupeQuick(delta) {
+        editionQuickActive = false;
+        indexGroupeQuick = (indexGroupeQuick + delta + ORDRE_GROUPES_QUICK.length) % ORDRE_GROUPES_QUICK.length;
+        indexParamQuick = 0;
+        renderEcran();
+    }
+    function changerParamQuick(delta) {
+        const liste = paramsDuGroupeQuick(ORDRE_GROUPES_QUICK[indexGroupeQuick]);
+        if (liste.length === 0) return;
+        if (editionQuickActive) {
+            ajusterValeurEnCoursEdition(liste[indexParamQuick], delta);
+        } else {
+            indexParamQuick = (indexParamQuick + delta + liste.length) % liste.length;
+        }
+        renderEcran();
+    }
+    function toggleEditionQuick() {
+        editionQuickActive = !editionQuickActive;
+        if (!editionQuickActive) { synchroniserLabelsDI(); sauvegarderDansLocalStorage(); }
+        renderEcran();
+    }
+    function selectionnerEnumQuick(valeur) {
+        const liste = paramsDuGroupeQuick(ORDRE_GROUPES_QUICK[indexGroupeQuick]);
+        fixerValeurParam(liste[indexParamQuick].paramKey, valeur);
+        editionQuickActive = false;
+        synchroniserLabelsDI(); sauvegarderDansLocalStorage();
+        renderEcran();
+    }
+
+    // --- Paramétrage Avancé (Menu 01 à 21, adresse native) ---
+    function ecranParamAvance() {
+        const liste = paramsDuMenuAvance(numMenuAvance);
+        if (indexParamAvance >= liste.length) indexParamAvance = 0;
+        const d = liste[indexParamAvance];
+        let html = entete("Paramétrage avancé") + '<div class="ts-content"><div class="ts-param-screen">';
+        html += '<div class="ts-param-titre-menu">MENU ' + String(numMenuAvance).padStart(2,"0") + ' : ' + (titresMenusAvances[numMenuAvance] || "") + '</div>';
+        if (!d && numMenuAvance === 19) {
+            html += '<div class="ts-param-nom">Aucun paramètre natif documenté</div>' +
+                '<div class="ts-param-valbox readonly"><div style="font-size:11px;">Le manuel indique littéralement : «Se référer à la notice de l\'option correspondante» (§5.20). Ce menu dépend de la carte d\'E/S supplémentaire installée (ex. MDX-IO) ; son contenu n\'est pas détaillé dans le guide de mise en service de base et n\'est donc pas inventé ici.</div></div>';
+        } else if (!d) {
+            html += '<div class="ts-param-nom">Aucun paramètre modélisé</div>' +
+                '<div class="ts-param-valbox readonly"><div style="font-size:11px;">Ce menu n\'est pas couvert dans cette version du simulateur (voir Doc Technique § couverture). Les menus 01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 12, 14, 16 et 17 contiennent des paramètres modélisés ; le menu 19 est un cas particulier (voir sa propre page).</div></div>';
+        } else {
+            html += '<div class="ts-param-nom">' + d.adresse + ' — ' + d.nom + '</div>' +
+                '<div class="ts-param-adresse">' + (d.groupeQuick ? ('correspond à ' + d.paramKey + ' en mode Rapide (menu ' + d.groupeQuick + ')') : 'Paramètre du mode Avancé uniquement (sans équivalent en Paramétrage Rapide)') + (d.condition ? ' — ' + d.condition : '') + '</div>' +
+                '<div class="ts-param-valbox ' + (editionAvanceActive ? "editable" : "readonly") + '">' + contenuValeurEditable(d, editionAvanceActive, "Avance") + '</div>';
+        }
+        html += '</div></div>';
+        html += '<div class="ts-menu-selector"><button class="ts-btn-nav" onclick="changerMenuAvance(-1)">◀ Menu</button><span>' + String(numMenuAvance).padStart(2,"0") + ' / 21</span><button class="ts-btn-nav" onclick="changerMenuAvance(1)">Menu ▶</button></div>';
+        html += '<div class="ts-menu-selector"><button class="ts-btn-nav" onclick="changerParamAvance(-1)">▼ Para</button><span>' + (d ? d.adresse : "--") + '</span><button class="ts-btn-nav" onclick="changerParamAvance(1)">▲ Para</button>' +
+            '<button class="ts-btn-nav" style="background:#7f5af0;color:#fff;" ' + (!d ? "disabled" : "") + ' onclick="toggleEditionAvance()">' + (editionAvanceActive ? "✓ Valider" : "✎ Modifier") + '</button></div>';
+        return html + piedStop();
+    }
+    function changerMenuAvance(delta) {
+        editionAvanceActive = false;
+        numMenuAvance = ((numMenuAvance - 1 + delta + 21) % 21) + 1;
+        indexParamAvance = 0;
+        renderEcran();
+    }
+    function changerParamAvance(delta) {
+        const liste = paramsDuMenuAvance(numMenuAvance);
+        if (liste.length === 0) return;
+        if (editionAvanceActive) {
+            ajusterValeurEnCoursEdition(liste[indexParamAvance], delta);
+        } else {
+            indexParamAvance = (indexParamAvance + delta + liste.length) % liste.length;
+        }
+        renderEcran();
+    }
+    function toggleEditionAvance() {
+        editionAvanceActive = !editionAvanceActive;
+        if (!editionAvanceActive) { synchroniserLabelsDI(); sauvegarderDansLocalStorage(); }
+        renderEcran();
+    }
+    function selectionnerEnumAvance(valeur) {
+        const liste = paramsDuMenuAvance(numMenuAvance);
+        fixerValeurParam(liste[indexParamAvance].paramKey, valeur);
+        editionAvanceActive = false;
+        synchroniserLabelsDI(); sauvegarderDansLocalStorage();
+        renderEcran();
+    }
+
+    // Construit le contenu de la zone de valeur (lecture ou édition) pour un paramètre
+    function contenuValeurEditable(d, enEdition, contexte) {
+        if (d.type === "enum") {
+            if (enEdition) {
+                let html = "";
+                d.options.forEach(opt => {
+                    const actif = opt === d.options[d.indexOpt];
+                    html += '<div class="ts-enum-option ' + (actif ? "actif" : "") + '" onclick="selectionnerEnum' + contexte + '(\'' + opt.replace(/'/g, "\\'") + '\')">' + opt + '</div>';
+                });
+                return html;
+            }
+            return '<div class="ts-param-val" style="font-size:13px;">' + d.options[d.indexOpt] + '</div>';
+        }
+        return '<div class="ts-param-val">' + formatNombre(d.valeur) + ' ' + (d.unite || "") + '</div>' +
+            (enEdition ? '<div style="font-size:9px;color:#888;text-align:right;">pas ' + d.pas + ' — ▲▼ Para pour ajuster</div>' : '');
+    }
+    function ajusterValeurEnCoursEdition(d, delta) {
+        if (d.type === "enum") {
+            d.indexOpt = (d.indexOpt + delta + d.options.length) % d.options.length;
+        } else {
+            let v = d.valeur + delta * d.pas;
+            if (d.min !== undefined) v = Math.max(d.min, v);
+            if (d.max !== undefined) v = Math.min(d.max, v);
+            d.valeur = Math.round(v * 1000) / 1000;
+        }
+    }
+    function formatNombre(v) {
+        return (Math.round(v * 1000) / 1000).toString();
+    }
+
+    // --- Sauvegarde (3 jeux de paramètres, variateur <-> interface) ---
+    function ecranSauvegarde() {
+        let html = entete("Sauvegarde") + '<div class="ts-content"><div style="font-size:10px;color:#666;">Mémoire : 3 jeux de paramètres possibles.</div>';
+        for (let i = 0; i < 3; i++) {
+            const f = sauvegardeFichiers[i];
+            const sel = (i === sauvegardeSlotSelectionne);
+            html += '<div class="ts-menu-item ' + (sel ? "selectionne" : "") + '" onclick="selectionnerSlotSauvegarde(' + i + ')">Fichier ' + (i + 1) + ' : ' + (f ? (f.date + " " + f.heure) : "vide") + '</div>';
+        }
+        html += '<div style="display:flex;gap:6px;margin-top:6px;">' +
+            '<button class="ts-btn-nav" style="flex:1;" onclick="sauvegarderVariateurVersInterface()">Variateur → Interface</button>' +
+            '<button class="ts-btn-nav" style="flex:1;" onclick="sauvegarderInterfaceVersVariateur()">Interface → Variateur</button></div>';
+        html += '</div>';
+        return html + piedStop();
+    }
+    function selectionnerSlotSauvegarde(i) { sauvegardeSlotSelectionne = i; renderEcran(); }
+    function sauvegarderVariateurVersInterface() {
+        const d = new Date();
+        const donnees = {};
+        defsMD2.forEach(p => donnees[p.paramKey] = p.type === "enum" ? p.indexOpt : p.valeur);
+        sauvegardeFichiers[sauvegardeSlotSelectionne] = {
+            date: d.toLocaleDateString("fr-FR"), heure: d.toLocaleTimeString("fr-FR"), data: donnees
+        };
+        logConsole("[Sauvegarde] Configuration variateur copiée dans le fichier " + (sauvegardeSlotSelectionne + 1) + ".");
+        sauvegarderDansLocalStorage();
+        renderEcran();
+    }
+    function sauvegarderInterfaceVersVariateur() {
+        const f = sauvegardeFichiers[sauvegardeSlotSelectionne];
+        if (!f) { logConsole("[Sauvegarde] Fichier " + (sauvegardeSlotSelectionne + 1) + " vide."); return; }
+        if (!confirm("Transférer dans le variateur les paramètres du fichier " + (sauvegardeSlotSelectionne + 1) + " du " + f.date + " à " + f.heure + " ?")) return;
+        defsMD2.forEach(p => { if (f.data[p.paramKey] !== undefined) { if (p.type === "enum") p.indexOpt = f.data[p.paramKey]; else p.valeur = f.data[p.paramKey]; } });
+        logConsole("[Sauvegarde] Fichier " + (sauvegardeSlotSelectionne + 1) + " restitué dans le variateur.");
+        synchroniserLabelsDI(); sauvegarderDansLocalStorage();
+        renderEcran();
+    }
+
+    // --- Paramétrage console (active la Commande par console) ---
+    function ecranParamConsole() {
+        let html = entete("Paramétrage console") + '<div class="ts-content">' +
+            '<div class="ts-toggle-row"><span>Réglage de la référence par console</span><button class="ts-toggle-btn ' + (consoleRefEnabled ? "on" : "") + '" onclick="toggleConsoleRef()">' + (consoleRefEnabled ? "Oui" : "Non") + '</button></div>' +
+            '<div class="ts-toggle-row"><span>Ordre de marche/arrêt par console</span><button class="ts-toggle-btn ' + (consoleCmdEnabled ? "on" : "") + '" onclick="toggleConsoleCmd()">' + (consoleCmdEnabled ? "Arrêt/Marche AV/AR" : "Non") + '</button></div>' +
+            '<div class="ts-toggle-row"><span>Touche arrêt de la console</span><button class="ts-toggle-btn ' + (consoleStopKeyEnabled ? "on" : "") + '" onclick="toggleConsoleStopKey()">' + (consoleStopKeyEnabled ? "Oui" : "Non") + '</button></div>' +
+            '<div style="font-size:10px;color:#888;margin-top:4px;">ATTENTION (cf. manuel §2.2.3.4) : activer la référence par console force Spd.03 (01.14) à «Console» ; activer les ordres de marche/arrêt par console force Ctr.05 (06.43) à «Par console».</div>' +
+            '</div>';
+        return html + piedStop();
+    }
+    function toggleConsoleRef() {
+        consoleRefEnabled = !consoleRefEnabled;
+        if (consoleRefEnabled) fixerValeurParam("Spd03", "Console");
+        renderEcran(); sauvegarderDansLocalStorage();
+    }
+    function toggleConsoleCmd() {
+        consoleCmdEnabled = !consoleCmdEnabled;
+        if (consoleCmdEnabled) fixerValeurParam("Ctr05", "Par console");
+        renderEcran(); sauvegarderDansLocalStorage();
+    }
+    function toggleConsoleStopKey() { consoleStopKeyEnabled = !consoleStopKeyEnabled; renderEcran(); sauvegarderDansLocalStorage(); }
+
+    // --- IHM Date/Heure (version simplifiée, lecture seule sur horloge navigateur) ---
+    function ecranIhmDateHeure() {
+        return entete("IHM - Date/Heure") + '<div class="ts-content">' +
+            '<div class="ts-info-row"><span>Date</span><span>' + new Date().toLocaleDateString("fr-FR") + '</span></div>' +
+            '<div class="ts-info-row"><span>Heure</span><span>' + new Date().toLocaleTimeString("fr-FR") + '</span></div>' +
+            '<div style="font-size:10px;color:#888;">Version simplifiée : la date/heure est alignée sur l\'horloge de l\'appareil (réglage manuel non modélisé dans cette version, voir note de couverture).</div>' +
+            '</div>' + piedStop();
+    }
+
+    // --- Commande par console (pilotage moteur depuis l'IHM) ---
+    function ecranCommandeConsole() {
+        let html = entete("Commande par console") + '<div class="ts-content">';
+        html += '<div class="ts-info-row"><span>État de fonctionnement</span><span>' + libelleEtatCourt() + '</span></div>';
+        html += '<div class="ts-info-row"><span>Vitesse moteur calculée</span><span>' + vitesseAffichee().toFixed(2) + ' min⁻¹</span></div>';
+        html += '<div class="ts-info-row"><span>Courant moteur total</span><span>' + courantMoteurSimule.toFixed(2) + ' A</span></div>';
+        if (!consoleCmdEnabled && !consoleRefEnabled) {
+            html += '<div style="font-size:11px;color:#888;margin-top:6px;">Commande par console désactivée (réglage usine). Activez-la depuis Paramétrage → Paramétrage console.</div>';
+        } else {
+            if (consoleCmdEnabled) {
+                html += '<div class="ts-console-btns" style="margin-top:6px;">' +
+                    '<button style="background:' + (consoleMarcheAV ? "#2cb67d" : "#ddd") + ';" onclick="toggleConsoleMarche(\'AV\')">Marche AV</button>' +
+                    '<button style="background:' + (consoleMarcheAR ? "#2cb67d" : "#ddd") + ';" onclick="toggleConsoleMarche(\'AR\')">Marche AR</button></div>';
+            }
+            if (consoleRefEnabled) {
+                html += '<div class="ts-toggle-row" style="margin-top:6px;"><span>Référence console</span><span>' + consoleConsigne.toFixed(0) + ' min⁻¹</span></div>' +
+                    '<input type="range" min="0" max="' + obtenirValeurParam("Spd01") + '" step="10" value="' + consoleConsigne + '" style="width:100%;accent-color:#2cb67d;" oninput="ajusterConsoleConsigne(this.value)">';
+            }
+        }
+        html += '</div>';
+        return html + piedStop();
+    }
+    function toggleConsoleMarche(sens) {
+        if (sens === "AV") { consoleMarcheAV = !consoleMarcheAV; if (consoleMarcheAV) consoleMarcheAR = false; }
+        else { consoleMarcheAR = !consoleMarcheAR; if (consoleMarcheAR) consoleMarcheAV = false; }
+        renderEcran();
+    }
+    function ajusterConsoleConsigne(v) { consoleConsigne = parseFloat(v); renderEcran(); }
+
+    // --- Historique des mises en sécurité (10 dernières) ---
+    function ecranHistorique() {
+        let html = entete("Historique des mises en sécurité") + '<div class="ts-content">';
+        if (historiqueMES.length === 0) {
+            html += '<div style="font-size:11px;color:#888;text-align:center;">Aucune mise en sécurité enregistrée.</div>';
+        } else {
+            historiqueMES.slice().reverse().forEach(h => {
+                html += '<div class="ts-hist-item"><span class="d">' + h.date + ' ' + h.heure + '</span><br>' + h.libelle + '</div>';
+            });
+        }
+        html += '</div>';
+        return html + piedStop();
+    }
+
+    function formatDateHeure() {
+        const d = new Date();
+        return d.toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}) + " " + d.toLocaleDateString("fr-FR");
+    }
+    function formatTempsFonctionnement() {
+        const totalSec = Math.floor(tempsFonctionnementSec);
+        const j = Math.floor(totalSec / 86400);
+        const h = Math.floor((totalSec % 86400) / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        return j + " j " + String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0") + ":" + String(s).padStart(2,"0");
+    }
+
+    // ===================================================================
+    // Câblage bornier virtuel
+    // ===================================================================
+    function basculerCablage(type) {
+        etatCablage[type] = !etatCablage[type];
+        const map = {alim:"btn-cabl-alim", moteur:"btn-cabl-mot", sto:"btn-cabl-sto"};
+        const btn = document.getElementById(map[type]);
+        const libelles = {alim:["RACCORDÉ","COUPÉ"], moteur:["RACCORDÉ","COUPÉ"], sto:["FERMÉES","OUVERTES"]};
+        btn.className = etatCablage[type] ? "btn-fil connecte" : "btn-fil";
+        btn.innerText = etatCablage[type] ? libelles[type][0] : libelles[type][1];
+        sauvegarderDansLocalStorage();
+    }
+    function basculerDI(num) {
+        di[num] = !di[num];
+        majSwitchesUI();
+        sauvegarderDansLocalStorage();
+    }
+    function majSwitchesUI() {
+        for (let i = 1; i <= 5; i++) {
+            const btn = document.getElementById("sw-di" + i);
+            if (!btn) continue;
+            btn.className = di[i] ? "switch-btn active" : "switch-btn";
+            btn.innerText = di[i] ? "ON" : "OFF";
+        }
+    }
+    function ajusterAI2(val) {
+        tensionAI2 = parseFloat(val);
+        document.getElementById("val-ai2").innerText = tensionAI2.toFixed(1) + " V";
+        sauvegarderDansLocalStorage();
+    }
+    // Synchronise les étiquettes DI1-DI5 avec la destination configurée (I/O.06 à I/O.10)
+    function synchroniserLabelsDI() {
+        const map = {1:"IO06", 2:"IO07", 3:"IO08", 4:"IO09", 5:"IO10"};
+        for (let i = 1; i <= 5; i++) {
+            const el = document.getElementById("lbl-di" + i);
+            if (el) el.innerText = "DI" + i + " (" + obtenirValeurParam(map[i]) + ")";
+        }
+    }
+</script>
+<!-- SCRIPT SIMULATEUR POWERDRIVE MD2 : MOTEUR DE SIMULATION, MISES EN SÉCURITÉ, TP -->
+<script>
+    let ordreRunCourant = false;
+    let tickCompteur = 0;
+    let consigneCibleCourante = 0.0;
+    let compteurEchauffement = 0;
+
+    const canvasVitesse = document.getElementById("graph-vitesse"), ctxVitesse = canvasVitesse.getContext("2d");
+    const canvasMLI = document.getElementById("oscillo-mli"), ctxMLI = canvasMLI.getContext("2d");
+    const canvasCourant = document.getElementById("graph-courant"), ctxCourant = canvasCourant.getContext("2d");
+
+    function logConsole(msg) {
+        const el = document.getElementById("console-modbus");
+        el.innerHTML += "[" + new Date().toLocaleTimeString() + "] " + msg + "<br>";
+        el.scrollTop = el.scrollHeight;
+    }
+
+    // ===================================================================
+    // État de fonctionnement (paramètre 10.98) — cf. manuel §7.2
+    // Sous-ensemble simulé : IH (verrouillé), St (arrêt), OP (fonctionnement),
+    // tr (mise en sécurité). Les états rd/CH/Lt/Fr/re ne sont pas atteignables
+    // par la physique simplifiée de cette version (voir note de couverture).
+    // ===================================================================
+    function calculerEtatFonctionnement() {
+        if (miseEnSecuriteActive) return {code:"tr", valeur: miseEnSecuriteActive.num, libelle: miseEnSecuriteActive.libelle};
+        if (!etatCablage.sto) return {code:"IH", valeur:0, libelle:"Verrouillé"};
+        if (!etatCablage.alim) return {code:"IH", valeur:0, libelle:"Verrouillé (pas d'alimentation réseau)"};
+        if (vitesseReelle > 0.1) return {code:"OP", valeur:1, libelle:"Déverrouillé moteur"};
+        return sensInverseActuel
+            ? {code:"St", valeur:5, libelle:"Arrêt rampe sens anti-horaire moteur"}
+            : {code:"St", valeur:3, libelle:"Arrêt rampe sens horaire moteur"};
+    }
+    function libelleEtatCourt() {
+        const e = calculerEtatFonctionnement();
+        return e.code + " / " + e.valeur + " — " + e.libelle;
+    }
+    function vitesseAffichee() { return (sensInverseActuel ? -1 : 1) * vitesseReelle; }
+
+    // ===================================================================
+    // Mises en sécurité (§7.4) — sous-ensemble câblé à la simulation
+    // ===================================================================
+    function declencherMES(num, libelleCourt, detail) {
+        miseEnSecuriteActive = {num: num, libelle: libelleCourt};
+        alarmeActive = null;
+        const d = new Date();
+        historiqueMES.push({date: d.toLocaleDateString("fr-FR"), heure: d.toLocaleTimeString("fr-FR"), libelle: "N°" + num + " — " + libelleCourt});
+        if (historiqueMES.length > 10) historiqueMES.shift();
+        logConsole("[MES] Déclenchement mise en sécurité n°" + num + " : " + libelleCourt + " — " + detail);
+        sauvegarderDansLocalStorage();
+    }
+    function causeMiseEnSecuriteResolue() {
+        if (!miseEnSecuriteActive) return true;
+        switch (miseEnSecuriteActive.num) {
+            case 35: return etatCablage.sto;
+            case 6: return etatCablage.moteur;
+            case 1: return etatCablage.alim;
+            case 28: return tensionAI2 >= 0.5 || obtenirValeurParam("Spd03") !== "Entrée analogique 2";
+            case 21: return compteurEchauffement < 50;
+            default: return true;
+        }
+    }
+    function verifierMisesEnSecurite() {
+        if (miseEnSecuriteActive) return;
+        if (!etatCablage.sto && ordreRunCourant && vitesseReelle > 0.3) {
+            declencherMES(35, "Entrées STO", "Ouverture simultanée des 2 entrées STO pendant le fonctionnement.");
+            return;
+        }
+        if (!etatCablage.moteur && vitesseReelle > 0.3) {
+            declencherMES(6, "Perte d'une phase moteur", "Un des 3 courants moteur est inférieur de 10% aux 2 autres (câble moteur déconnecté).");
+            return;
+        }
+        if (!etatCablage.alim && vitesseReelle > 0.3) {
+            declencherMES(1, "Sous tension bus continu", "La tension du bus continu est passée sous le seuil minimum (perte réseau en fonctionnement).");
+            return;
+        }
+        const io01 = obtenirValeurParam("IO01");
+        if (io01 && io01.indexOf("avec détection") !== -1 && obtenirValeurParam("Spd03") === "Entrée analogique 2" && tensionAI2 < 0.5 && ordreRunCourant) {
+            declencherMES(28, "Perte 4mA sur AI2", "Perte de la consigne courant sur l'entrée analogique AI2 (type de signal «avec détection»).");
+            return;
+        }
+        const ctr03 = parseFloat(obtenirValeurParam("Ctr03"));
+        if (ctr03 >= 16 && vitesseReelle > 0.1) compteurEchauffement++;
+        else compteurEchauffement = Math.max(0, compteurEchauffement - 2);
+
+        if (compteurEchauffement > 200) {
+            declencherMES(21, "Surchauffe IGBT U", "Surchauffe des IGBTs de phase U (fréquence de découpage élevée prolongée). Réduire Ctr.03 ou améliorer le refroidissement.");
+            return;
+        } else if (compteurEchauffement > 90 && !alarmeActive) {
+            alarmeActive = {num:7, libelle:"Surchauffe variateur (alarme préventive, voir 10.18)"};
+        } else if (compteurEchauffement <= 90 && alarmeActive && alarmeActive.num === 7) {
+            alarmeActive = null;
+        }
+    }
+
+    // ===================================================================
+    // Évaluation des sorties logiques (DO1 / Relais 2), cf. I/O.11 / I/O.12
+    // ===================================================================
+    function evaluerSourceSortie(source) {
+        switch (source) {
+            case "Vitesse nulle": return vitesseReelle < (obtenirValeurParam("Apl07f") || 5);
+            case "Consigne atteinte": return ordreRunCourant && Math.abs(vitesseReelle - consigneCibleCourante) < 5;
+            case "Charge nominale atteinte": return courantMoteurSimule >= obtenirValeurParam("Mtr02") * 0.95;
+            case "Alarme surchauffe moteur": return false;
+            case "Alarme vitesse maximum": return vitesseReelle >= obtenirValeurParam("Spd01") * 0.98;
+            case "État sortie commande frein": return ordreRunCourant;
+            case "Sortie du comparateur 4": case "Sortie du comparateur 5": return false;
+            default: return false;
+        }
+    }
+    function majLeds() {
+        const do1 = evaluerSourceSortie(obtenirValeurParam("IO11"));
+        const r2 = evaluerSourceSortie(obtenirValeurParam("IO12"));
+        document.getElementById("led-do1").className = "led verte" + (do1 ? " actif" : "");
+        document.getElementById("led-r2").className = "led rouge" + (r2 ? " actif" : "");
+        document.getElementById("led-sto").className = "led verte" + (etatCablage.sto ? " actif" : "");
+    }
+
+    // ===================================================================
+    // Boucle physique du moteur (tick 50 ms)
+    // ===================================================================
+    function boucleMoteur() {
+      try {
+        const ctr05 = obtenirValeurParam("Ctr05"), ctr06 = obtenirValeurParam("Ctr06");
+        const spd01 = obtenirValeurParam("Spd01"), spd02 = obtenirValeurParam("Spd02"), spd03 = obtenirValeurParam("Spd03");
+        const spd06 = obtenirValeurParam("Spd06"), spd07 = obtenirValeurParam("Spd07");
+
+        ordreRunCourant = false;
+        let sensDemande = sensInverseActuel;
+        if (!miseEnSecuriteActive && etatCablage.sto) {
+            if (ctr05 === "Par bornier") {
+                if (di[4] && !di[5]) { ordreRunCourant = true; sensDemande = false; }
+                else if (di[5] && !di[4]) { ordreRunCourant = true; sensDemande = true; }
+                else if (di[4] && di[5] && ctr06 === "M/A + inversion de sens") { ordreRunCourant = true; }
+            } else if (ctr05 === "Par console" && consoleCmdEnabled) {
+                if (consoleMarcheAV) { ordreRunCourant = true; sensDemande = false; }
+                else if (consoleMarcheAR) { ordreRunCourant = true; sensDemande = true; }
+            }
+        }
+        sensInverseActuel = sensDemande;
+
+        let consigneCible = 0.0;
+        if (ordreRunCourant) {
+            if (spd03 === "Par bornier") consigneCible = di[3] ? (tensionAI2 / 10.0) * spd01 : 0;
+            else if (spd03 === "Entrée analogique 1") consigneCible = 0;
+            else if (spd03 === "Entrée analogique 2") consigneCible = (tensionAI2 / 10.0) * spd01;
+            else if (spd03 === "Référence préréglée") consigneCible = di[2] ? obtenirValeurParam("Spd05") : obtenirValeurParam("Spd04");
+            else if (spd03 === "Console") consigneCible = consoleConsigne;
+            if (consigneCible > 0 && consigneCible < spd02) consigneCible = spd02;
+            consigneCible = Math.min(consigneCible, spd01);
+        }
+        consigneCibleCourante = consigneCible;
+
+        const pasAcc = (1000 / Math.max(spd06, 0.1)) * 0.05;
+        const pasDec = (1000 / Math.max(spd07, 0.1)) * 0.05;
+        if (vitesseReelle < consigneCible) vitesseReelle = Math.min(consigneCible, vitesseReelle + pasAcc);
+        else if (vitesseReelle > consigneCible) vitesseReelle = Math.max(0, vitesseReelle - pasDec);
+
+        const inMoteur = obtenirValeurParam("Mtr02");
+        const cibleCourant = (vitesseReelle > 0.1) ? inMoteur * (0.35 + 0.65 * (vitesseReelle / Math.max(spd01, 1))) : inMoteur * 0.05;
+        courantMoteurSimule += (cibleCourant - courantMoteurSimule) * 0.2;
+
+        const ctr03v = parseFloat(obtenirValeurParam("Ctr03"));
+        const cibleTemp = 28 + (vitesseReelle > 0.1 ? 8 : 2) + Math.max(0, ctr03v - 6) * 0.8;
+        temperatureCarteSimulee += (cibleTemp - temperatureCarteSimulee) * 0.01;
+
+        if (vitesseReelle > 0.1) tempsFonctionnementSec += 0.05;
+
+        verifierMisesEnSecurite();
+
+        histVitesse.push((sensInverseActuel ? -1 : 1) * vitesseReelle); if (histVitesse.length > MAX_HISTORIQUE_GRAPH) histVitesse.shift();
+        histCourant.push(courantMoteurSimule); if (histCourant.length > MAX_HISTORIQUE_GRAPH) histCourant.shift();
+
+        majLeds();
+        dessinerGraphVitesse(); dessinerOscilloMLI(); dessinerGraphCourant();
+        // Rafraîchissement de l'écran tactile limité aux écrans affichant des
+        // mesures en temps réel (Mode lecture, Commande console), et espacé
+        // dans le temps plutôt qu'à chaque tick (50 ms) : reconstruire le DOM
+        // du bouton "B : Menu principal" 20 fois/seconde pouvait faire
+        // disparaître un clic souris juste avant qu'il n'aboutisse (l'écran
+        // d'accueil n'a de toute façon rien qui justifie un rafraîchissement
+        // aussi fréquent).
+        tickCompteur++;
+        if (tickCompteur % 6 === 0 && ["modeLecture", "commandeConsole"].indexOf(ecranActuel) !== -1) renderEcran();
+      } catch (e) {
+        console.error("[boucleMoteur] erreur au cours d'un cycle :", e);
+        try {
+            const el = document.getElementById("console-modbus");
+            if (el) { el.innerHTML += "[ERREUR SIMULATION] " + e.message + "<br>"; el.scrollTop = el.scrollHeight; }
+        } catch (ignored) {}
+      }
+      // La reprogrammation du cycle suivant est toujours exécutée, même après une
+      // erreur ci-dessus : la simulation ne reste jamais bloquée définitivement.
+      setTimeout(boucleMoteur, 50);
+    }
+
+    function dessinerGraphVitesse() {
+        ctxVitesse.clearRect(0, 0, canvasVitesse.width, canvasVitesse.height);
+        const yZero = canvasVitesse.height / 2;
+        ctxVitesse.strokeStyle = "#383a40"; ctxVitesse.lineWidth = 1; ctxVitesse.beginPath();
+        ctxVitesse.moveTo(0, yZero); ctxVitesse.lineTo(canvasVitesse.width, yZero); ctxVitesse.stroke();
+        const spd01 = obtenirValeurParam("Spd01") || 1500;
+        const echelleY = (canvasVitesse.height / 2 - 10) / Math.max(spd01, 100);
+        const pasX = canvasVitesse.width / (MAX_HISTORIQUE_GRAPH - 1);
+        ctxVitesse.strokeStyle = sensInverseActuel ? "#e53170" : "#2cb67d"; ctxVitesse.lineWidth = 2; ctxVitesse.beginPath();
+        for (let i = 0; i < histVitesse.length; i++) {
+            const x = i * pasX, y = yZero - (histVitesse[i] * echelleY);
+            if (i === 0) ctxVitesse.moveTo(x, y); else ctxVitesse.lineTo(x, y);
+        }
+        ctxVitesse.stroke();
+    }
+    function dessinerOscilloMLI() {
+        ctxMLI.clearRect(0, 0, canvasMLI.width, canvasMLI.height);
+        const ctr03 = parseFloat(obtenirValeurParam("Ctr03")) || 3;
+        ctxMLI.strokeStyle = "#2cb67d"; ctxMLI.lineWidth = 1.5; ctxMLI.beginPath();
+        for (let x = 0; x < canvasMLI.width; x++) {
+            let pwm = Math.sin(x * 0.05) > Math.sin(x * ctr03 * 0.2) ? 15 : 65;
+            if (vitesseReelle < 0.1) pwm = 40;
+            if (x === 0) ctxMLI.moveTo(x, pwm); else ctxMLI.lineTo(x, pwm);
+        }
+        ctxMLI.stroke();
+    }
+    function dessinerGraphCourant() {
+        ctxCourant.clearRect(0, 0, canvasCourant.width, canvasCourant.height);
+        const inMax = (obtenirValeurParam("Mtr02") || 4.2) * 2.2;
+        const pasX = canvasCourant.width / (MAX_HISTORIQUE_GRAPH - 1);
+        ctxCourant.strokeStyle = "#383a40"; ctxCourant.beginPath(); ctxCourant.moveTo(0, canvasCourant.height - 2); ctxCourant.lineTo(canvasCourant.width, canvasCourant.height - 2); ctxCourant.stroke();
+        ctxCourant.strokeStyle = "#ff8e3c"; ctxCourant.lineWidth = 2; ctxCourant.beginPath();
+        for (let i = 0; i < histCourant.length; i++) {
+            const x = i * pasX, y = canvasCourant.height - 4 - (histCourant[i] / Math.max(inMax, 1)) * (canvasCourant.height - 8);
+            if (i === 0) ctxCourant.moveTo(x, y); else ctxCourant.lineTo(x, y);
+        }
+        ctxCourant.stroke();
+    }
+
+    // ===================================================================
+    // Mode lecture : correspondance adresse -> valeur simulée
+    // ===================================================================
+    function valeurLectureSimulee(adr) {
+        switch (adr) {
+            case "10.98": { const e = calculerEtatFonctionnement(); return e.code + " / " + e.valeur; }
+            case "05.04": return vitesseAffichee().toFixed(2);
+            case "04.01": return courantMoteurSimule.toFixed(2);
+            case "05.01": return ((vitesseReelle / Math.max(obtenirValeurParam("Spd01"), 1)) * obtenirValeurParam("Mtr01")).toFixed(2);
+            case "04.02": return (courantMoteurSimule * 0.85).toFixed(2);
+            case "05.02": return (Math.min(1, vitesseReelle / Math.max(obtenirValeurParam("Spd01"), 1)) * obtenirValeurParam("Mtr04")).toFixed(1);
+            case "05.03": return ((courantMoteurSimule * obtenirValeurParam("Mtr04") * 1.732 * (obtenirValeurParam("Mtr05") || 0.85)) / 1000).toFixed(2);
+            case "05.05 / 07.81": return etatCablage.alim ? "540 / 400" : "0 / 0";
+            case "07.01": return "0.00";
+            case "07.02": return tensionAI2.toFixed(2);
+            case "07.03": return "0.00";
+            case "07.68": return "4.00";
+            case "08.01 à 08.05": return [1,2,3,4,5].map(i => di[i] ? "1" : "0").join("-");
+            case "08.07 à 08.09": return (evaluerSourceSortie(obtenirValeurParam("IO11")) ? "DO1:1" : "DO1:0") + " " + (evaluerSourceSortie(obtenirValeurParam("IO12")) ? "RL2:1" : "RL2:0") + " STO:" + (etatCablage.sto ? "1-1" : "0-0");
+            case "01.49": return vitesseAffichee().toFixed(2);
+            case "01.50": return (di[2] ? obtenirValeurParam("Spd05") : obtenirValeurParam("Spd04")).toFixed(2);
+            case "01.01": case "01.03": case "02.01": return vitesseAffichee().toFixed(2);
+            case "07.55": return temperatureCarteSimulee.toFixed(1);
+            case "06.22 / 06.23": return formatTempsFonctionnement();
+            case "14.62": case "14.63": return "0.00";
+            default: return "--";
+        }
+    }
+
+    // ===================================================================
+    // Persistance (localStorage), export/import JSON
+    // ===================================================================
+    function sauvegarderDansLocalStorage() {
+        const params = {};
+        defsMD2.forEach(d => { params[d.paramKey] = d.type === "enum" ? d.indexOpt : d.valeur; });
+        const etat = {
+            params: params, cablage: etatCablage, di: di, tensionAI2: tensionAI2,
+            historiqueMES: historiqueMES, sauvegardeFichiers: sauvegardeFichiers,
+            consoleRefEnabled: consoleRefEnabled, consoleCmdEnabled: consoleCmdEnabled, consoleStopKeyEnabled: consoleStopKeyEnabled,
+            etudiant: {
+                nom: document.getElementById("nom-etudiant").value,
+                prenom: document.getElementById("prenom-etudiant").value,
+                tpClef: document.getElementById("select-tp").value
+            }
+        };
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(etat));
+            const tag = document.getElementById("tag-save");
+            tag.style.opacity = "1"; setTimeout(() => { tag.style.opacity = "0.6"; }, 800);
+        } catch (e) {}
+    }
+    function chargerDepuisLocalStorage() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return false;
+            const etat = JSON.parse(raw);
+            if (etat.params) defsMD2.forEach(d => { if (etat.params[d.paramKey] !== undefined) { if (d.type === "enum") d.indexOpt = etat.params[d.paramKey]; else d.valeur = etat.params[d.paramKey]; } });
+            if (etat.cablage) {
+                etatCablage = etat.cablage;
+                const map = {alim:["btn-cabl-alim",["RACCORDÉ","COUPÉ"]], moteur:["btn-cabl-mot",["RACCORDÉ","COUPÉ"]], sto:["btn-cabl-sto",["FERMÉES","OUVERTES"]]};
+                for (let t in map) { const btn = document.getElementById(map[t][0]); btn.className = etatCablage[t] ? "btn-fil connecte" : "btn-fil"; btn.innerText = etatCablage[t] ? map[t][1][0] : map[t][1][1]; }
+            }
+            if (etat.di) { di = etat.di; majSwitchesUI(); }
+            if (etat.tensionAI2 !== undefined) { tensionAI2 = etat.tensionAI2; document.getElementById("slider-ai2").value = tensionAI2; document.getElementById("val-ai2").innerText = tensionAI2.toFixed(1) + " V"; }
+            if (etat.historiqueMES) historiqueMES = etat.historiqueMES;
+            if (etat.sauvegardeFichiers) sauvegardeFichiers = etat.sauvegardeFichiers;
+            if (etat.consoleRefEnabled !== undefined) consoleRefEnabled = etat.consoleRefEnabled;
+            if (etat.consoleCmdEnabled !== undefined) consoleCmdEnabled = etat.consoleCmdEnabled;
+            if (etat.consoleStopKeyEnabled !== undefined) consoleStopKeyEnabled = etat.consoleStopKeyEnabled;
+            if (etat.etudiant) {
+                if (etat.etudiant.nom) document.getElementById("nom-etudiant").value = etat.etudiant.nom;
+                if (etat.etudiant.prenom) document.getElementById("prenom-etudiant").value = etat.etudiant.prenom;
+                if (etat.etudiant.tpClef) document.getElementById("select-tp").value = etat.etudiant.tpClef;
+            }
+            return true;
+        } catch (e) { return false; }
+    }
+    function effacerLocalStorage() {
+        if (confirm("⚠️ Réinitialiser le TP et effacer le cache local ?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); }
+    }
+    function exporterJSON() {
+        const data = {};
+        defsMD2.forEach(d => { data[d.paramKey] = d.type === "enum" ? d.options[d.indexOpt] : d.valeur; });
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Config_PowerdriveMD2.json"; a.click();
+    }
+    function importerJSON(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const config = JSON.parse(e.target.result);
+            for (let k in config) fixerValeurParam(k, config[k]);
+            synchroniserLabelsDI(); sauvegarderDansLocalStorage(); renderEcran();
+        };
+        reader.readAsText(event.target.files[0]);
+    }
+
+    function reinitialiserDefauts() {
+        if (miseEnSecuriteActive && causeMiseEnSecuriteResolue()) { logConsole("[MES] Acquittement manuel (barre d'outils)."); miseEnSecuriteActive = null; }
+        else if (miseEnSecuriteActive) logConsole("[MES] Acquittement refusé : la cause de la mise en sécurité est toujours présente.");
+        alarmeActive = null; compteurEchauffement = 0;
+        renderEcran(); sauvegarderDansLocalStorage();
+    }
+
+    function lancerChallenge() {
+        modeChallenge = true; secondesChrono = 0;
+        document.getElementById("chrono-box").style.display = "block";
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            secondesChrono++;
+            const m = Math.floor(secondesChrono / 60).toString().padStart(2, "0"), s = (secondesChrono % 60).toString().padStart(2, "0");
+            document.getElementById("chrono-val").innerText = m + ":" + s;
+        }, 1000);
+        etatCablage.moteur = false; document.getElementById("btn-cabl-mot").className = "btn-fil"; document.getElementById("btn-cabl-mot").innerText = "COUPÉ";
+        fixerValeurParam("Ctr05", "Par bus"); fixerValeurParam("Ctr03", "18");
+        synchroniserLabelsDI(); sauvegarderDansLocalStorage();
+        alert("⏱️ CHALLENGE DÉMARRÉ ! Le moteur ne répond plus aux commandes bornier et le variateur chauffe anormalement : à vous de diagnostiquer.");
+    }
+
+    // ===================================================================
+    // Banque de TP et évaluation
+    // ===================================================================
+    const banquesTP = {
+        tp1: {titre:"TP 1 : Vérification Réglages d'Usine", consignes:"Vérifier que <strong>Ctr.08</strong> (Mode d'arrêt) = <strong>Rampe</strong> et <strong>Spd.01</strong> (Limite maximum) = <strong>1500.00 min⁻¹</strong> (réglages usine).", attentes:{Ctr08:"Rampe", Spd01:1500.00}},
+        tp2: {titre:"TP 2 : Plaque Signalétique Moteur", consignes:"Configurer la plaque moteur réelle : <strong>Mtr.01</strong> = 50.00 Hz, <strong>Mtr.03</strong> = 1450.00 min⁻¹ (glissement), <strong>Mtr.04</strong> = 400 V.", attentes:{Mtr01:50.00, Mtr03:1450.00, Mtr04:400}},
+        tp3: {titre:"TP 3 : Sorties Logiques DO1 / Relais 2", consignes:"Affecter <strong>I/O.11</strong> (Source sortie DO1) = <strong>Alarme vitesse maximum</strong> et <strong>I/O.12</strong> (Source sortie relais 2) = <strong>Vitesse nulle</strong>.", attentes:{IO11:"Alarme vitesse maximum", IO12:"Vitesse nulle"}},
+        tp4: {titre:"TP 4 : Rampes et Vitesses", consignes:"Régler <strong>Spd.06</strong> (Accélération 1) = 5.0 s, <strong>Spd.07</strong> (Décélération 1) = 8.0 s, et <strong>Spd.01</strong> (Limite maximum) = 1000.00 min⁻¹.", attentes:{Spd06:5.0, Spd07:8.0, Spd01:1000.00}},
+        tp5: {titre:"TP 5 : Application Centrifuge (Apl)", consignes:"Sélectionner <strong>Ctr.01</strong> = <strong>Application centrifuge</strong>, puis régler <strong>Apl.08</strong> (Seuil comparateur 5, sous-vitesse) = 300.00 min⁻¹.", attentes:{Ctr01:"Application centrifuge", Apl08c:300.00}}
+    };
+    function changerTP() {
+        const tp = banquesTP[document.getElementById("select-tp").value];
+        document.getElementById("consigne-tp").innerHTML = "<strong>" + tp.titre + "</strong><br>" + tp.consignes;
+        sauvegarderDansLocalStorage();
+    }
+    function evaluerTP() {
+        if (modeChallenge && timerInterval) clearInterval(timerInterval);
+        const tp = banquesTP[document.getElementById("select-tp").value];
+        let pts = 0; const total = Object.keys(tp.attentes).length;
+        for (let p in tp.attentes) {
+            const val = obtenirValeurParam(p), att = tp.attentes[p];
+            if (typeof att === "number" ? Math.abs(parseFloat(val) - att) < 0.05 : val === att) pts++;
+        }
+        const note = Math.round((pts / total) * 20);
+        const box = document.getElementById("resultat-tp");
+        box.style.display = "block"; box.style.background = note >= 10 ? "#1e4620" : "#5c1d24";
+        box.innerHTML = "<strong>Note Procédure : " + note + " / 20</strong>" + (modeChallenge ? "<br>Temps : " + document.getElementById("chrono-val").innerText : "");
+        document.getElementById("btn-preview-pdf").style.display = "block";
+        document.getElementById("btn-pdf").style.display = "block";
+    }
+    function genererContenuHTMLPDF() {
+        const nom = document.getElementById("nom-etudiant").value || "Non renseigné";
+        const prenom = document.getElementById("prenom-etudiant").value || "Non renseigné";
+        const tpTitre = banquesTP[document.getElementById("select-tp").value].titre;
+        let modifs = "";
+        defsMD2.forEach(d => {
+            const val = d.type === "enum" ? d.options[d.indexOpt] : d.valeur;
+            if (val !== d.valeurUsine) modifs += "<li><strong>" + d.paramKey + "</strong> (" + d.adresse + ") : " + val + " <em>(Usine : " + d.valeurUsine + ")</em></li>";
+        });
+        if (!modifs) modifs = "<li>Aucun paramètre modifié.</li>";
+        return "<h1>Bilan Évaluation Powerdrive MD2</h1><p><strong>Élève :</strong> " + prenom + " " + nom + "</p><p><strong>TP :</strong> " + tpTitre + "</p><h3>Résultats</h3><div>" + document.getElementById("resultat-tp").innerHTML + "</div><h3>Paramètres Modifiés :</h3><ul>" + modifs + "</ul>";
+    }
+    function afficherLecturePDF() {
+        document.getElementById("document-pdf-render").innerHTML = genererContenuHTMLPDF();
+        const c = document.getElementById("conteneur-pdf-viewer"); c.style.display = "block"; c.scrollIntoView({behavior:"smooth"});
+    }
+    function exporterPDF() {
+        const nom = document.getElementById("nom-etudiant").value || "Eleve", prenom = document.getElementById("prenom-etudiant").value || "TP";
+        const el = document.createElement("div"); el.className = "visionneuse-papier"; el.style.padding = "25px"; el.innerHTML = genererContenuHTMLPDF();
+        html2pdf().from(el).save("Rapport_PowerdriveMD2_" + nom + "_" + prenom + ".pdf");
+    }
+</script>
+<!-- SCRIPT SIMULATEUR POWERDRIVE MD2 : DOCUMENTATION TECHNIQUE + INITIALISATION -->
+<script>
+    // États de fonctionnement (10.98) — légende complète du manuel §7.2 (tableau condensé)
+    const etatsMD2 = [
+        {code:"IH", valeur:"0 / 30", libelle:"Verrouillé (dont «Verrouillage extérieur» si STO ouvertes avec ordre de marche présent)"},
+        {code:"OP", valeur:"1, 2, 27, 28, 29, 31", libelle:"Fonctionnement : déverrouillé moteur/générateur, reprise à la volée, temporisation démarrage, V réseau < Vmin"},
+        {code:"St", valeur:"3 à 18", libelle:"Arrêt : sur rampe, injection DC, index — sens horaire/anti-horaire, moteur/générateur"},
+        {code:"Lt", valeur:"19 à 26", libelle:"Limitation de courant ou de tension bus — sens horaire/anti-horaire, moteur/générateur"},
+        {code:"rd", valeur:"32", libelle:"Prêt"},
+        {code:"CH", valeur:"33, 35, 36", libelle:"Vérification : autocalibrage, test des cartes, test de la puissance"},
+        {code:"tr", valeur:"1 à 51+", libelle:"Mise en sécurité active (voir tableau ci-dessous)"},
+        {code:"Fr", valeur:"37", libelle:"Incendie (fonctionnement marche d'urgence validée)"},
+        {code:"re", valeur:"34", libelle:"Régén (mode redresseur, variateurs Régen)"}
+    ];
+    // Mises en sécurité les plus courantes — extrait du tableau §7.4 (manuel, p.174-176)
+    const tripsMD2 = [
+        {num:1, libelle:"Sous tension bus continu", raison:"Tension bus DC < 330V (\"T\") / 480V (\"TH\")"},
+        {num:2, libelle:"Surtension du bus continu", raison:"Tension bus DC > 815V (\"T\") / 1200V (\"TH\")"},
+        {num:3, libelle:"Surintensité en sortie du variateur", raison:"Courant de sortie instantané > 2,22 x In variateur"},
+        {num:4, libelle:"Surintensité IGBT freinage", raison:"Surintensité transistor IGBT de freinage (POWERDRIVE MD2 uniquement)"},
+        {num:5, libelle:"Déséquilibre I", raison:"Somme des 3 courants moteur > 15% du courant nominal variateur"},
+        {num:6, libelle:"Perte d'une phase moteur", raison:"Un des 3 courants moteur < 10% des 2 autres"},
+        {num:7, libelle:"Survitesse", raison:"Vitesse > 1,3 x 01.06 ou > 01.06 + 1000 min⁻¹"},
+        {num:8, libelle:"Surcharge variateur Ixt", raison:"Intégration des surcharges du variateur > valeur autorisée"},
+        {num:9, libelle:"IGBT U", raison:"Protection interne des IGBT de la phase U"},
+        {num:10, libelle:"Th redresseur", raison:"Température trop élevée du dissipateur du redresseur"},
+        {num:11, libelle:"Rotation codeur", raison:"Position mesurée ne variant pas (option MDX-ENCODER)"},
+        {num:19, libelle:"Résistance de freinage", raison:"Intégration surcharge résistance de freinage (10.39) = 100%"},
+        {num:21, libelle:"Surchauffe IGBT U", raison:"Surchauffe des IGBT de la phase U"},
+        {num:24, libelle:"Sonde CTP moteur", raison:"Température moteur supérieure au maximum autorisé"},
+        {num:26, libelle:"Surcharge +24V", raison:"Surcharge de l'alimentation +24V ou des sorties logiques"},
+        {num:28, libelle:"Perte 4mA sur AI2", raison:"Perte de la consigne courant sur l'entrée analogique AI2"},
+        {num:29, libelle:"Perte 4mA sur AI3", raison:"Perte de la consigne courant sur l'entrée analogique AI3"},
+        {num:30, libelle:"Perte Communication", raison:"Perte de communication sur la liaison série du connecteur P2"},
+        {num:31, libelle:"EEPROM", raison:"Nombre de cycles d'écriture sur l'EEPROM dépassé (>1 000 000)"},
+        {num:34, libelle:"Perte bus de terrain", raison:"Déconnexion du bus de terrain en cours de fonctionnement"},
+        {num:35, libelle:"Entrées STO", raison:"Ouverture simultanée des 2 entrées STO pendant le fonctionnement"},
+        {num:37, libelle:"Rupture codeur", raison:"Une information de retour codeur n'est pas présente"},
+        {num:38, libelle:"Décrochage machine synchrone", raison:"Problème de contrôle du moteur synchrone en mode flux orienté"},
+        {num:41, libelle:"Utilisateur 1 à 10", raison:"Mises en sécurité utilisateur déclenchées par 10.61 à 10.67 / 10.38"}
+    ];
+
+    function genererDocumentationParametres() {
+        const sections = [
+            {titre:"MENU Ctr : CONTRÔLE DE BASE DU MOTO-VARIATEUR", items: defsMD2.filter(d => d.groupeQuick === "Ctr")},
+            {titre:"MENU Mtr : PLAQUE MOTEUR", items: defsMD2.filter(d => d.groupeQuick === "Mtr")},
+            {titre:"MENU Spd : VITESSES ET RAMPES", items: defsMD2.filter(d => d.groupeQuick === "Spd")},
+            {titre:"MENU I/O : INTERFACE CLIENT", items: defsMD2.filter(d => d.groupeQuick === "IO")},
+            {titre:"MENU Apl : RÉGLAGES COMPLÉMENTAIRES 1 (si Ctr.01 = Application centrifuge)", items: defsMD2.filter(d => d.aplBloc === "centrifuge")},
+            {titre:"MENU Apl : RÉGLAGES COMPLÉMENTAIRES 2 (si Ctr.01 = Application avec moteur frein)", items: defsMD2.filter(d => d.aplBloc === "frein")},
+            {titre:"MODE AVANCÉ — MENU 16 : FONCTIONS D'AUTOMATISME (pas de correspondance en mode Rapide)", items: defsMD2.filter(d => d.menuAvance === 16)},
+            {titre:"MODE AVANCÉ — MENU 17 : DIAGNOSTICS (pas de correspondance en mode Rapide)", items: defsMD2.filter(d => d.menuAvance === 17)}
+        ];
+        let html = "";
+        sections.forEach(s => {
+            html += '<h3 style="color:#2cb67d; margin-top:18px;">' + s.titre + '</h3>';
+            html += '<table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:8px;">' +
+                '<tr style="background:#16161a;"><th style="padding:6px; text-align:left;">Code</th><th style="padding:6px; text-align:left;">Adresse</th><th style="padding:6px; text-align:left;">Nom</th><th style="padding:6px; text-align:left;">Réglage usine</th><th style="padding:6px; text-align:left;">Description</th></tr>';
+            s.items.forEach(d => {
+                const usine = d.type === "enum" ? d.options[d.indexOpt] : (d.valeurUsine + (d.unite ? " " + d.unite : ""));
+                const codeAffiche = d.groupeQuick ? d.paramKey : d.adresse;
+                html += '<tr style="border-bottom:1px solid #383a40;">' +
+                    '<td style="padding:6px; font-family:monospace; color:#2cb67d;">' + codeAffiche + '</td>' +
+                    '<td style="padding:6px; font-family:monospace;">' + d.adresse + '</td>' +
+                    '<td style="padding:6px;">' + d.nom + '</td>' +
+                    '<td style="padding:6px;">' + usine + '</td>' +
+                    '<td style="padding:6px; color:#94a1b2;">' + d.desc + (d.condition ? ' <em>(' + d.condition + ')</em>' : '') + (d.note ? ' <br><span style="color:#ff8e3c;">⚠ ' + d.note + '</span>' : '') + '</td>' +
+                    '</tr>';
+            });
+            html += "</table>";
+        });
+        document.getElementById("doc-tableaux-params").innerHTML = html;
+
+        document.getElementById("doc-table-etats").innerHTML =
+            '<tr style="background:#16161a;"><th style="padding:6px; text-align:left;">Code</th><th style="padding:6px; text-align:left;">Valeur(s)</th><th style="padding:6px; text-align:left;">Signification</th></tr>' +
+            etatsMD2.map(e => '<tr style="border-bottom:1px solid #383a40;"><td style="padding:6px; font-family:monospace; color:#2cb67d;">' + e.code + '</td><td style="padding:6px;">' + e.valeur + '</td><td style="padding:6px;">' + e.libelle + '</td></tr>').join("");
+
+        document.getElementById("doc-table-defauts").innerHTML =
+            '<tr style="background:#16161a;"><th style="padding:6px; text-align:left;">N°</th><th style="padding:6px; text-align:left;">Libellé</th><th style="padding:6px; text-align:left;">Raison</th></tr>' +
+            tripsMD2.map(t => '<tr style="border-bottom:1px solid #383a40;"><td style="padding:6px; font-family:monospace; color:#e53170;">' + t.num + '</td><td style="padding:6px;">' + t.libelle + '</td><td style="padding:6px; color:#94a1b2;">' + t.raison + '</td></tr>').join("");
+    }
+
+    // ===================================================================
+    // Initialisation
+    // ===================================================================
+    // Exécute chaque étape indépendamment : une erreur dans l'une n'empêche pas
+    // les suivantes de s'exécuter (en particulier renderEcran(), pour ne jamais
+    // laisser l'écran tactile vide même si le chargement d'un état sauvegardé
+    // corrompu ou une autre étape échoue).
+    function etapeSure(nom, fn) {
+        try { fn(); } catch (e) {
+            console.error("[INIT] Échec de l'étape « " + nom + " » :", e);
+            try {
+                const el = document.getElementById("console-modbus");
+                if (el) { el.innerHTML += "[INIT] Échec de « " + nom + " » : " + e.message + "<br>"; el.scrollTop = el.scrollHeight; }
+            } catch (ignored) {}
+        }
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+        etapeSure("chargerDepuisLocalStorage", chargerDepuisLocalStorage);
+        etapeSure("changerTP", changerTP);
+        etapeSure("synchroniserLabelsDI", synchroniserLabelsDI);
+        etapeSure("renderEcran", renderEcran);
+        etapeSure("boucleMoteur", boucleMoteur);
+        etapeSure("genererDocumentationParametres", genererDocumentationParametres);
+        etapeSure("log init", () => logConsole("[SYS] Interface MDX-Powerscreen initialisée."));
+    });
+</script>
+</body>
+</html>
